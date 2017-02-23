@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <package>
-  <name>humanoid_league_vision_viz</name>
+  <name>humanoid_league_rviz</name>
   <version>0.0.0</version>
-  <description>Draws recognized objects on image which should afterwards be displayd with rqt.</description>
+  <description>Shows RoboCup specific objects in RViz</description>
 
   <maintainer email="info@bit-bots.de">Hamburg Bit-Bots</maintainer>
   <license>BSD</license>

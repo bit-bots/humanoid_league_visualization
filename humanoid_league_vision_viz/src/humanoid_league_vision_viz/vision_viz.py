@@ -48,8 +48,10 @@ class VisionViz:
         self.ball_candidates = OrderedDict()
         self.balls = OrderedDict()
 
+        #todo these have to be dyn reconfigurable
         self.candidates_active = True
         self.ball_active = True
+        #todo add goals, obstacles and line
 
         self.viz_publisher = rospy.Publisher("/vision_viz_image", Image, queue_size=10)
         rospy.Subscriber("/image_raw", Image, self._image_cb, queue_size=10)
