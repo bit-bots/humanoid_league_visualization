@@ -55,10 +55,16 @@ class VisionViz:
         self.img_lock = threading.Lock()
         self.can_lock = threading.Lock()
 
-        #todo these have to be dyn reconfigurable
+        self.ball_roi_active = True
         self.candidates_active = True
         self.ball_active = True
-        #todo add goals, obstacles and line
+        self.goal_roi_active = True
+        self.goal_posts_active = True
+        self.goals_active = True
+        self.obstacle_roi_active = True
+        self.obstacles_active = True
+        self.lines_roi_active = True
+        self.line = True
 
         self.server = Server(vision_viz_paramsConfig, self.reconfigure)
         self.viz_publisher = rospy.Publisher("/vision_viz_image", Image, queue_size=10)
@@ -122,6 +128,7 @@ class VisionViz:
 
         self.lines_roi_active = config["line_ROI"]
         self.line = config["lines"]
+        return config
 
 if __name__ == "__main__":
     cm730_node = VisionViz()
