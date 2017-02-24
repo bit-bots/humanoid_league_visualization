@@ -9,9 +9,14 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   humanoid_league_msgs
   geometry_msgs
+  dynamic_reconfigure
 )
 
 catkin_python_setup()
+
+generate_dynamic_reconfigure_options(
+   cfg/vision_viz_params.cfg
+)
 
 catkin_package()
 

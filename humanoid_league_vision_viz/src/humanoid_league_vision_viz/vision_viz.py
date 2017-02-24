@@ -6,9 +6,11 @@ from collections import OrderedDict
 import cv2
 import os
 import rospy
+from dynamic_reconfigure.server import Server
 from humanoid_league_msgs.msg import BallInImage, BallsInImage
-from sensor_msgs.msg import Image
+from sensor_msgs.msg import Image, RegionOfInterest
 from cv_bridge import CvBridge, CvBridgeError
+from humanoid_league_vision_viz.cfg import vision_viz_paramsConfig
 
 
 def draw_ball(cv_img, ball):
@@ -41,7 +43,6 @@ def draw_ball_candidates(cv_img, candidates):
             # draw the center of the circle
             cv2.circle(cv_img, (i[0], i[1]), 2, (0, 0, 255), 3)
 
-
 class VisionViz:
     def __init__(self):
         rospy.init_node("bitbots_vision_viz")
@@ -59,6 +60,7 @@ class VisionViz:
         self.ball_active = True
         #todo add goals, obstacles and line
 
+        self.server = Server(vision_viz_paramsConfig, self.reconfigure)
         self.viz_publisher = rospy.Publisher("/vision_viz_image", Image, queue_size=10)
         rospy.Subscriber("/image_raw", Image, self._image_cb, queue_size=10)
         rospy.Subscriber("/ball_candidates", BallsInImage, self._candidates_cb, queue_size=10)
@@ -105,6 +107,21 @@ class VisionViz:
             if len(self.ball_candidates) > 5:
                 self.ball_candidates.popitem(last=False)
 
+    def reconfigure(self, config, level):
+
+        self.ball_roi_active = config["ball_ROI"]
+        self.candidates_active = config["ball_candidates"]
+        self.ball_active = config["ball"]
+
+        self.goal_roi_active = config["goal_post_ROI"]
+        self.goal_posts_active = config["goal_posts"]
+        self.goals_active = config["goals"]
+
+        self.obstacle_roi_active = config["obstacle_ROI"]
+        self.obstacles_active = config["obstacles"]
+
+        self.lines_roi_active = config["line_ROI"]
+        self.line = config["lines"]
 
 if __name__ == "__main__":
     cm730_node = VisionViz()
