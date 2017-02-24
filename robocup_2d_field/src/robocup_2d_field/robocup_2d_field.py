@@ -62,11 +62,12 @@ class RoboCup2dField(Plugin):
         self._scene.setBackgroundBrush(QColor(255, 255, 255))
 
         # field object
-        field_image = QPixmap("/home/keks/repositories/humanoid_league_rqt/robocup_2d_field/resource/field.png")
+        rp = rospkg.RosPack()
+        image_path = rp.get_path('robocup_2d_field') + "/resource/field.png"
+        field_image = QPixmap(image_path)
         self.field = QGraphicsPixmapItem(field_image)
         self.field.setPos(0, 0)
         self._scene.addItem(self.field)
-
         # robot
         self.robot = QGraphicsEllipseItem(0, 0, self.robot_size, self.robot_size, self.field)
         self.robot_brush = QBrush(QColor(255, 0, 0))
@@ -75,7 +76,7 @@ class RoboCup2dField(Plugin):
         self.robot_pen.setWidth(self.robot_pen_width)
         self.robot.setPen(self.robot_pen)
         self.robot.setVisible(False)
-        self._scene.addItem(self.robot)
+        #self._scene.addItem(self.robot)
 
         # ball
         self.ball = QGraphicsEllipseItem(0, 0, self.ball_size, self.ball_size, self.field)
@@ -85,7 +86,7 @@ class RoboCup2dField(Plugin):
         self.ball_brush = QBrush(QColor(255, 165, 0))
         self.ball.setBrush(self.ball_brush)
         self.ball.setVisible(False)
-        self._scene.addItem(self.ball)
+        #self._scene.addItem(self.ball)
 
         # set the right positions and sizes
         self.resize_field()
@@ -110,7 +111,6 @@ class RoboCup2dField(Plugin):
         x_scale = size.width() / self.image_width
         y_scale = size.height() / self.image_height
         self.scale = min(x_scale, y_scale)
-        rospy.logwarn(self.scale)
         self.field.setScale(self.scale)
         self.view.centerOn(size.width() / 2, size.height() / 2)
         self.field.offset()
