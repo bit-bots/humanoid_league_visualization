@@ -1,0 +1,3 @@
+This node subscribes to the raw image and to the messages that publish the position of objects on an image, which are defined in humanoid_league_msgs.
+The recognized objects are drawn into the image and the image is republished on a different topic. This image can be view using rqt or rosview.
+Drawing of objects can be enabled and disabled using dynamic reconfigure.

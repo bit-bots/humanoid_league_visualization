@@ -2,7 +2,7 @@
 <package>
   <name>humanoid_league_rviz_marker</name>
   <version>0.0.0</version>
-  <description>Shows RoboCup specific objects in RViz</description>
+  <description>Shows RoboCup Soccer specific objects in RViz. More information in the README.</description>
 
   <maintainer email="info@bit-bots.de">Hamburg Bit-Bots</maintainer>
   <license>BSD</license>
