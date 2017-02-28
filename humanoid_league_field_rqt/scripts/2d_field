@@ -5,4 +5,4 @@ import sys
 from rqt_gui.main import Main
 
 main = Main()
-sys.exit(main.main(sys.argv, standalone='humanoid_league_field_rqt.humanoid_league_field_rqt.RoboCup2dField'))
+sys.exit(main.main(sys.argv, standalone='humanoid_league_field_rqt.humanoid_league_field_rqt.HumanoidLeagueFieldRqt'))

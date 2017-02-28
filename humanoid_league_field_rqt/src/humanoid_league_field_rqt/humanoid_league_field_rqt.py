@@ -24,9 +24,12 @@ from rqt_gui_py.plugin import Plugin
 from humanoid_league_msgs.msg import Position
 
 
-class RoboCup2dField(Plugin):
+class HumanoidLeagueFieldRqt(Plugin):
+    """ This class provides a rqt plugin which shows a 2d view of a RoboCup Soccer field.
+     Different objects can be shown. Their position changing is handled in the respective callbacks."""
+
     def __init__(self, context):
-        super(RoboCup2dField, self).__init__(context)
+        super(HumanoidLeagueFieldRqt, self).__init__(context)
         self.setObjectName('2dField')
 
         # field values
@@ -76,7 +79,6 @@ class RoboCup2dField(Plugin):
         self.robot_pen.setWidth(self.robot_pen_width)
         self.robot.setPen(self.robot_pen)
         self.robot.setVisible(False)
-        #self._scene.addItem(self.robot)
 
         # ball
         self.ball = QGraphicsEllipseItem(0, 0, self.ball_size, self.ball_size, self.field)
@@ -86,7 +88,6 @@ class RoboCup2dField(Plugin):
         self.ball_brush = QBrush(QColor(255, 165, 0))
         self.ball.setBrush(self.ball_brush)
         self.ball.setVisible(False)
-        #self._scene.addItem(self.ball)
 
         # set the right positions and sizes
         self.resize_field()

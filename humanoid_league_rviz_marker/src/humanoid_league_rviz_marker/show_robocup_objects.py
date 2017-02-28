@@ -10,23 +10,27 @@ from humanoid_league_msgs.msg import BallRelative, GoalRelative, ObstaclesRelati
 
 
 class ShowRobocupObjects:
+    """This class provides RViz markers coresponding to the recognized relative objects.
+    The generation of messages is handled directly in the respective callback methods."""
+
     def __init__(self):
         rospy.init_node("show_robocup_objects")
-        #todo make dyn reconf able
+        # todo make dyn reconf able
+        # todo add line markers
         self.marker_publisher = rospy.Publisher("/robocup_markers", Marker, queue_size=10)
-
 
         # object properties
         self.ball_diameter = 0.13
-        self.ball_lifetime = int(0.1*(10**9))
+        self.ball_lifetime = int(0.1 * (10 ** 9))
         self.post_diameter = 0.10
         self.post_height = 1.10
-        self.goal_lifetime = int(0.1*(10**9))
+        self.goal_lifetime = int(0.1 * (10 ** 9))
         self.obstacle_height = 1.0
-        self.obstacle_lifetime = int(1*(10**9))
+        self.obstacle_lifetime = int(1 * (10 ** 9))
         self.obstacle_def_width = 0.3
 
         # --- initilize message objects ---
+        # Most of the message information stay the same. It is more performant to set them just one time
         self.frame_id = "base_link"
         # ball
         self.marker_ball_rel = Marker()  # type: Marker
@@ -43,9 +47,9 @@ class ShowRobocupObjects:
         self.ball_color.a = 1.0
         self.marker_ball_rel.color = self.ball_color
         self.marker_ball_rel.lifetime = rospy.Duration(nsecs=self.ball_lifetime)
-        #goal
-        ## post 1
-        self.marker_goal_rel1 = Marker() # type:Marker
+        # goal
+        # -post 1
+        self.marker_goal_rel1 = Marker()  # type:Marker
         self.marker_goal_rel1.header.frame_id = self.frame_id
         self.marker_goal_rel1.ns = "rel_goal"
         self.marker_goal_rel1.id = 0
@@ -61,8 +65,8 @@ class ShowRobocupObjects:
         self.post1_color.a = 1.0
         self.marker_goal_rel1.color = self.post1_color
         self.marker_goal_rel1.lifetime = rospy.Duration(nsecs=self.goal_lifetime)
-        ## post 2
-        self.marker_goal_rel2 = Marker() # type:Marker
+        # -post 2
+        self.marker_goal_rel2 = Marker()  # type:Marker
         self.marker_goal_rel2.header.frame_id = self.frame_id
         self.marker_goal_rel2.ns = "rel_goal"
         self.marker_goal_rel2.id = 1
@@ -99,7 +103,7 @@ class ShowRobocupObjects:
         self.marker_ball_rel.header.stamp = rospy.Time.from_sec(time.time())
 
         self.ball_pose.position = msg.ball_relative
-        self.ball_pose.position.z = self.ball_diameter/2
+        self.ball_pose.position.z = self.ball_diameter / 2
         self.marker_ball_rel.pose = self.ball_pose
         self.ball_color.a = msg.confidence
         self.marker_ball_rel.color = self.ball_color
@@ -107,19 +111,21 @@ class ShowRobocupObjects:
         self.marker_publisher.publish(self.marker_ball_rel)
 
     def goal_cb(self, msg: GoalRelative):
+        # first post
         if len(msg.positions) > 0:
             self.marker_goal_rel1.header.stamp = rospy.Time.from_sec(time.time())
             self.goal_post1_pose.position = msg.positions[0]
-            self.goal_post1_pose.position.z = self.post_height/2
+            self.goal_post1_pose.position.z = self.post_height / 2
             self.marker_goal_rel1.pose = self.goal_post1_pose
             self.post1_color.a = msg.confidence
             self.marker_goal_rel1.color = self.post1_color
             self.marker_publisher.publish(self.marker_goal_rel1)
 
+        # second post
         if len(msg.positions) > 1:
             self.marker_goal_rel2.header.stamp = rospy.Time.from_sec(time.time())
             self.goal_post2_pose.position = msg.positions[0]
-            self.goal_post2_pose.position.z = self.post_height/2
+            self.goal_post2_pose.position.z = self.post_height / 2
             self.marker_goal_rel1.pose = self.goal_post2_pose
             self.post2_color.a = msg.confidence
             self.marker_goal_rel2.color = self.post2_color
@@ -165,5 +171,6 @@ class ShowRobocupObjects:
 
             self.marker_publisher.publish(self.marker_obstacle)
 
+
 if __name__ == "__main__":
-    cm730_node = ShowRobocupObjects()
+    marker_node = ShowRobocupObjects()

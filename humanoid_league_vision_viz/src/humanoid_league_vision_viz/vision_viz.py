@@ -14,19 +14,21 @@ from humanoid_league_vision_viz.cfg import vision_viz_paramsConfig
 
 
 def draw_ball(cv_img, ball):
+    """Draws a circle on the image where the ball was seen."""
     i = [0, 0, 0]
     i[0] = int(ball.center.x)
     i[1] = int(ball.center.y)
     i[2] = int(ball.diameter / 2.0)
     c = (255, 0, 0)
+    # outer circle
     cv2.circle(cv_img, (i[0], i[1]), i[2], c, 2)
+    # circle center
     cv2.circle(cv_img, (i[0], i[1]), 2, (0, 0, 255), 3)
 
 
 def draw_ball_candidates(cv_img, candidates):
-    rospy.logwarn(candidates)
+    """Draws a list of ball candidates. The color is depending on the confidence."""
     if len(candidates) > 0:
-        rospy.logwarn("drawing")
         for can in candidates:
             i = [0, 0, 0]
             i[0] = int(can.center.x)
@@ -43,8 +45,13 @@ def draw_ball_candidates(cv_img, candidates):
             # draw the center of the circle
             cv2.circle(cv_img, (i[0], i[1]), 2, (0, 0, 255), 3)
 
+
 class VisionViz:
+    """This class starts a ROS node which takes images and draws recognized RoboCup Soccer objects on to it.
+    Dynamic reconfigure is used to activate and deactive certain drawings."""
+
     def __init__(self):
+        # todo implement final ball, goal posts and lines
         rospy.init_node("bitbots_vision_viz")
 
         self.bridge = CvBridge()
@@ -79,19 +86,18 @@ class VisionViz:
             with self.img_lock:
                 images = copy.deepcopy(self.images)
 
-            # print("Waiting for " + str(self.images.keys()))
             for t in images.keys():  # imgages who are wating
                 img = images.pop(t)  # get image from queue
                 cv_img = self.bridge.imgmsg_to_cv2(img, "bgr8")
                 with self.can_lock:
                     if t in self.ball_candidates:  # Check if all data to draw is there
                         candidates = self.ball_candidates.pop(t)
-                        #ball = self.balls.pop(t)
+                        # ball = self.balls.pop(t)
 
                         if self.candidates_active:
                             rospy.logwarn("1")
                             draw_ball_candidates(cv_img, candidates)
-                        #if self.ball_active:
+                        # if self.ball_active:
                         #    draw_ball(cv_img, ball)
 
                         out_msg = self.bridge.cv2_to_imgmsg(cv_img, encoding="bgr8")
@@ -130,5 +136,6 @@ class VisionViz:
         self.line = config["lines"]
         return config
 
+
 if __name__ == "__main__":
-    cm730_node = VisionViz()
+    viz = VisionViz()
