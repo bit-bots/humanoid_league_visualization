@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(robocup_2d_field)
+project(humanoid_league_field_rqt)
 # Load catkin and all dependencies required for this package
 find_package(catkin REQUIRED)
 catkin_package()

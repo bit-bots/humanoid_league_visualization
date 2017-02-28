@@ -1,6 +1,6 @@
 <package>
-  <name>robocup_2d_field</name>
-  <version>0.0.1</version>
+  <name>humanoid_league_field_rqt</name>
+  <version>1.0.0</version>
   <description>A Python GUI plugin to visualize data on a 2d view of a RoboCup field.</description>
   <maintainer email="info@bit-bots.de">Hamburg Bit-Bots</maintainer>
 

@@ -46,7 +46,7 @@ class RoboCup2dField(Plugin):
         # initialize the UI
         self._widget = QWidget()
         rp = rospkg.RosPack()
-        ui_file = os.path.join(rp.get_path('robocup_2d_field'), 'resource', '2dField.ui')
+        ui_file = os.path.join(rp.get_path('humanoid_league_field_rqt'), 'resource', '2dField.ui')
         loadUi(ui_file, self._widget)
         self._widget.setObjectName('2dFieldUi')
         if context.serial_number() > 1:
@@ -63,7 +63,7 @@ class RoboCup2dField(Plugin):
 
         # field object
         rp = rospkg.RosPack()
-        image_path = rp.get_path('robocup_2d_field') + "/resource/field.png"
+        image_path = rp.get_path('humanoid_league_field_rqt') + "/resource/field.png"
         field_image = QPixmap(image_path)
         self.field = QGraphicsPixmapItem(field_image)
         self.field.setPos(0, 0)
