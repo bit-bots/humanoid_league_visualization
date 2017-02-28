@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <package>
-  <name>humanoid_league_rviz</name>
+  <name>humanoid_league_rviz_marker</name>
   <version>0.0.0</version>
   <description>Shows RoboCup specific objects in RViz</description>
 
