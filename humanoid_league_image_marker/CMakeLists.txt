@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(humanoid_league_vision_viz)
+project(humanoid_league_image_marker)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -15,7 +15,7 @@ find_package(catkin REQUIRED COMPONENTS
 catkin_python_setup()
 
 generate_dynamic_reconfigure_options(
-   cfg/vision_viz_params.cfg
+   cfg/image_marker_params.cfg
 )
 
 catkin_package()

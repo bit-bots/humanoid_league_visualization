@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <package>
-  <name>humanoid_league_vision_viz</name>
+  <name>humanoid_league_image_marker</name>
   <version>1.0.0</version>
   <description>Draws recognized objects on image which should afterwards be displayd with rqt.</description>
 
