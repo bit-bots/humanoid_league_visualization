@@ -21,10 +21,14 @@ from PyQt5.QtWidgets import QWidget
 from python_qt_binding import loadUi
 
 from rqt_gui_py.plugin import Plugin
-from humanoid_league_msgs.msg import Position
+
+from humanoid_league_msgs.msg import BallRelative
+from humanoid_league_msgs.msg import GoalRelative
 
 from dynamic_reconfigure.server import Server
-from humanoid_league_msgs.cfg import field_rqt_params
+
+
+# from humanoid_league_msgs.cfg import field_rqt_params
 
 
 class HumanoidLeagueRelativeRqt(Plugin):
@@ -45,12 +49,17 @@ class HumanoidLeagueRelativeRqt(Plugin):
         self.obstacle_size = 75
         self.obstacle_pen_width = 5
         self.ball_size = 50
-        self.opacity = 0.5
+        self.opacity = 0.75
+        self.post_size = 50
+        self.center_size = 30
+
+        self.ball_active = True
+        self.goal_active = True
 
         # initialize the UI
         self._widget = QWidget()
         rp = rospkg.RosPack()
-        ui_file = os.path.join(rp.get_path('humanoid_league_relqtive_rqt'), 'resource', 'relative.ui')
+        ui_file = os.path.join(rp.get_path('humanoid_league_relative_rqt'), 'resource', 'relative.ui')
         loadUi(ui_file, self._widget)
         self._widget.setObjectName('2dFieldUi')
         if context.serial_number() > 1:
@@ -65,88 +74,72 @@ class HumanoidLeagueRelativeRqt(Plugin):
         self._scene = QGraphicsScene()
         self._scene.setBackgroundBrush(QColor(255, 255, 255))
 
-        # field object
+        # radar object
         rp = rospkg.RosPack()
         image_path = rp.get_path('humanoid_league_relative_rqt') + "/resource/radar.png"
         field_image = QPixmap(image_path)
-        self.field = QGraphicsPixmapItem(field_image)
-        self.field.setPos(0, 0)
-        self._scene.addItem(self.field)
-
-
-        # robot
-        self.robot_pen = QPen()
-        self.robot_pen.setWidth(self.obstacle_pen_width)
-        self.robot_brush = QBrush(QColor(255, 0, 0))
-
-        self.robot = QGraphicsEllipseItem(0, 0, self.obstacle_size, self.obstacle_size, self.field)
-        self.robot.setBrush(self.robot_brush)
-        self.robot.setPen(self.robot_pen)
-        self.robot.setVisible(False)
-        self.robot.setOpacity(self.opacity)
-
-        self.robot_pers = QGraphicsEllipseItem(0, 0, self.obstacle_size, self.obstacle_size, self.field)
-        self.robot_pers.setBrush(self.robot_brush)
-        self.robot_pers.setPen(self.robot_pen)
-        self.robot_pers.setVisible(False)
-        self.robot_pers.setOpacity(self.opacity)
-
-        self.robot_team = QGraphicsEllipseItem(0, 0, self.obstacle_size, self.obstacle_size, self.field)
-        self.robot_team.setBrush(self.robot_brush)
-        self.robot_team.setPen(self.robot_pen)
-        self.robot_team.setVisible(False)
-        self.robot_team.setOpacity(self.opacity)
+        self.radar = QGraphicsPixmapItem(field_image)
+        self.radar.setPos(0, 0)
+        self._scene.addItem(self.radar)
 
         # ball
-        self.ball_pen = QPen(QColor(255, 165, 0))
+        self.ball_pen = QPen(QColor(255, 125, 0))
         self.ball_pen.setWidth(2)
 
-        self.ball_personal_brush = QBrush(QColor(255, 165, 0))
-        self.ball_personal_brush.setStyle("HorPattern")
-        self.ball_personal = QGraphicsEllipseItem(0, 0, self.ball_size, self.ball_size, self.field)
-        self.ball_personal.setPen(self.ball_pen)
-        self.ball_personal.setBrush(self.ball_brush)
-        self.ball_personal.setVisible(False)
-        self.ball_personal.setOpacity(self.opacity)
+        self.ball_brush = QBrush(QColor(255, 125, 0))
+        self.ball = QGraphicsEllipseItem(0, 0, self.ball_size, self.ball_size, self.radar)
+        self.ball.setPen(self.ball_pen)
+        self.ball.setBrush(self.ball_brush)
+        self.ball.setVisible(False)
+        self.ball.setOpacity(self.opacity)
 
-        self.ball_team_brush = QBrush(QColor(255, 165, 0))
-        self.ball_team_brush.setStyle("VerPattern")
-        self.ball_team = QGraphicsEllipseItem(0, 0, self.ball_size, self.ball_size, self.field)
-        self.ball_team.setPen(self.ball_pen)
-        self.ball_team.setBrush(self.ball_brush)
-        self.ball_team.setVisible(False)
-        self.ball_team.setOpacity(self.opacity)
+        # goal posts
+        self.post_pen = QPen(QColor(200, 200, 0))
+        self.post_pen.setWidth(2)
+        self.post_brush = QBrush(QColor(200, 200, 0))
 
+        self.left_post = QGraphicsEllipseItem(0, 0, self.post_size, self.post_size, self.radar)
+        self.left_post.setPen(self.post_pen)
+        self.left_post.setBrush(self.post_brush)
+        self.left_post.setVisible(False)
+        self.left_post.setOpacity(self.opacity)
 
+        self.right_post = QGraphicsEllipseItem(0, 0, self.post_size, self.post_size, self.radar)
+        self.right_post.setPen(self.post_pen)
+        self.right_post.setBrush(self.post_brush)
+        self.right_post.setVisible(False)
+        self.right_post.setOpacity(self.opacity)
+
+        # goal center
+        self.center_pen = QPen(QColor(150, 150, 0))
+        self.center_pen.setWidth(2)
+        self.center_brush = QBrush(QColor(150, 150, 0))
+
+        self.center = QGraphicsEllipseItem(0, 0, self.center_size, self.center_size, self.radar)
+        self.center.setPen(self.center_pen)
+        self.center.setBrush(self.center_brush)
+        self.center.setVisible(False)
+        self.center.setOpacity(self.opacity)
 
         # set the right positions and sizes
         self.resize_field()
         self.view.setScene(self._scene)
 
-        # todo implement the messages in the architecture (speak with wolves)
-        # rospy.Subscriber("/local_model", LocalModel, self.local_model_update, queue_size=100)
-        # rospy.Subscriber("/global_model", GlobalModel, self.global_model_update, queue_size=100)
+        # self.dyn_reconf = Server(field_rqt_params, self.reconfigure)
 
-        self.dyn_reconf = Server(field_rqt_params, self.reconfigure)
-
-        rospy.Subscriber("/local_position", Position, self.position_cb, queue_size=10)
+        rospy.Subscriber("ball_relative", BallRelative, self.ball_cb, queue_size=100)
+        rospy.Subscriber("goal_relative", GoalRelative, self.goal_cb, queue_size=100)
 
         context.add_widget(self._widget)
 
     def reconfigure(self, config, level):
-        # get bools of what is active and not from dyn reconfigure
-        position = config["position"]
-        personal = config["personal"]
-        team = config["team"]
-
         # set visibilities accordingly
-        self.robot.setVisible(position)
+        self.ball_active = config["ball"]
+        self.goal_active = config["goal"]
 
-        self.robot_pers.setVisible(personal)
-        self.ball_personal.setVisible(personal)
-
-        self.robot_team.setVisible(team)
-        self.ball_team.setVisible(team)
+        # todo
+        # config["obstacles"]
+        # config["lines"]
 
     def resize_field(self):
         # fits the field into current window size
@@ -154,35 +147,45 @@ class HumanoidLeagueRelativeRqt(Plugin):
         x_scale = size.width() / self.image_width
         y_scale = size.height() / self.image_height
         self.scale = min(x_scale, y_scale)
-        self.field.setScale(self.scale)
+        self.radar.setScale(self.scale)
         self.view.centerOn(size.width() / 2, size.height() / 2)
-        self.field.offset()
+        self.radar.offset()
 
     def set_scaled_position(self, item, x, y, height, width):
         item_scale = min(self.scale + 0.5, 1)
         item.setScale(item_scale)
-        x *= self.field_length_img / self.field_length  # scaling from meters to pixels on original image
+        x *= self.meter_length_img  # scaling from meters to pixels on original image
         x += self.image_width / 2  # transform from upper left corner (qt coord system) to center point (robocup coord sys)
         x -= width * item_scale / 2
         x = max(min(x, self.image_width - 50), 0)  # dont let it get outside of the window
 
-        y *= self.field_width_img / self.field_width
+        y *= self.meter_length_img
         y += self.image_height / 2
         y -= height * item_scale / 2
         y = max(min(y, self.image_height - 50), 0)
 
-        item.setX(x)
-        item.setY(y)
+        item.setX(y)
+        item.setY(x)
 
-        return x, y
+    def ball_cb(self, msg):
+        if msg.ball_relative is not None:
+            self.set_scaled_position(self.ball, -1 * msg.ball_relative.x, -1 * msg.ball_relative.y, self.ball_size,
+                                     self.ball_size)
+        self.ball.setVisible(msg.confidence > 0 and self.ball_active)
+        self.ball.setOpacity(msg.confidence)
 
-    def position_cb(self, msg):
-        self.set_scaled_position(self.robot, msg.pose.x, msg.pose.y, self.obstacle_size, self.obstacle_size)
-        angle = math.degrees(msg.pose.theta) * 16  # to get to qt coordinate system
-        # set orientation
-        self.robot.setStartAngle(angle)
-        self.robot.setSpanAngle(360 * 16 - 1)
-        factor = msg.confidence * -1 + 1
-        self.robot_brush.setColor(QColor(255, 200 * factor, 200 * factor))
-        self.robot.setBrush(self.robot_brush)
-        self.robot.setVisible(True)
+    def goal_cb(self, msg):
+        self.set_scaled_position(self.left_post, -1 * msg.left_post.x, -1 * msg.left_post.y, self.post_size,
+                                 self.post_size)
+        self.left_post.setVisible(msg.confidence > 0 and self.goal_active)
+        self.left_post.setOpacity(msg.confidence)
+
+        self.set_scaled_position(self.right_post, -1 * msg.right_post.x, -1 * msg.right_post.y, self.post_size,
+                                 self.post_size)
+        self.right_post.setVisible(msg.confidence > 0 and self.goal_active)
+        self.right_post.setOpacity(msg.confidence)
+
+        self.set_scaled_position(self.center, -1 * msg.center_direction.x, -1 * msg.center_direction.y, self.center_size,
+                                 self.center_size)
+        self.center.setOpacity(msg.confidence)
+        self.center.setVisible(msg.confidence > 0 and self.goal_active)

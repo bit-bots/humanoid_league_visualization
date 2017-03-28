@@ -112,9 +112,9 @@ class ShowRobocupObjects:
 
     def goal_cb(self, msg: GoalRelative):
         # first post
-        if len(msg.positions) > 0:
+        if msg.left_post is not None:
             self.marker_goal_rel1.header.stamp = rospy.Time.from_sec(time.time())
-            self.goal_post1_pose.position = msg.positions[0]
+            self.goal_post1_pose.position = msg.left_post
             self.goal_post1_pose.position.z = self.post_height / 2
             self.marker_goal_rel1.pose = self.goal_post1_pose
             self.post1_color.a = msg.confidence
@@ -122,11 +122,11 @@ class ShowRobocupObjects:
             self.marker_publisher.publish(self.marker_goal_rel1)
 
         # second post
-        if len(msg.positions) > 1:
+        if msg.right_post is not None:
             self.marker_goal_rel2.header.stamp = rospy.Time.from_sec(time.time())
-            self.goal_post2_pose.position = msg.positions[0]
+            self.goal_post2_pose.position = msg.right_post
             self.goal_post2_pose.position.z = self.post_height / 2
-            self.marker_goal_rel1.pose = self.goal_post2_pose
+            self.marker_goal_rel2.pose = self.goal_post2_pose
             self.post2_color.a = msg.confidence
             self.marker_goal_rel2.color = self.post2_color
             self.marker_publisher.publish(self.marker_goal_rel2)

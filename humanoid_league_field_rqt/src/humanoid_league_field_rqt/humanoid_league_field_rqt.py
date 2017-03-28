@@ -21,10 +21,10 @@ from PyQt5.QtWidgets import QWidget
 from python_qt_binding import loadUi
 
 from rqt_gui_py.plugin import Plugin
-from humanoid_league_msgs.msg import Position
+from humanoid_league_msgs.msg import Position2D
 
 from dynamic_reconfigure.server import Server
-from humanoid_league_msgs.cfg import field_rqt_params
+#from humanoid_league_field_rqt.cfg import field_rqt_params
 
 
 class HumanoidLeagueFieldRqt(Plugin):
@@ -53,7 +53,7 @@ class HumanoidLeagueFieldRqt(Plugin):
         # initialize the UI
         self._widget = QWidget()
         rp = rospkg.RosPack()
-        ui_file = os.path.join(rp.get_path('field_rqt_params'), 'resource', 'relative.ui')
+        ui_file = os.path.join(rp.get_path('humanoid_league_field_rqt'), 'resource', '2dField.ui')
         loadUi(ui_file, self._widget)
         self._widget.setObjectName('2dFieldUi')
         if context.serial_number() > 1:
@@ -70,7 +70,7 @@ class HumanoidLeagueFieldRqt(Plugin):
 
         # field object
         rp = rospkg.RosPack()
-        image_path = rp.get_path('field_rqt') + "/resource/field.png"
+        image_path = rp.get_path('humanoid_league_field_rqt') + "/resource/field.png"
         field_image = QPixmap(image_path)
         self.field = QGraphicsPixmapItem(field_image)
         self.field.setPos(0, 0)
@@ -105,18 +105,18 @@ class HumanoidLeagueFieldRqt(Plugin):
         self.ball_pen.setWidth(2)
 
         self.ball_personal_brush = QBrush(QColor(255, 165, 0))
-        self.ball_personal_brush.setStyle("HorPattern")
+        #self.ball_personal_brush.setStyle("HorPattern")
         self.ball_personal = QGraphicsEllipseItem(0, 0, self.ball_size, self.ball_size, self.field)
         self.ball_personal.setPen(self.ball_pen)
-        self.ball_personal.setBrush(self.ball_brush)
+        self.ball_personal.setBrush(self.ball_personal_brush)
         self.ball_personal.setVisible(False)
         self.ball_personal.setOpacity(self.opacity)
 
         self.ball_team_brush = QBrush(QColor(255, 165, 0))
-        self.ball_team_brush.setStyle("VerPattern")
+        #self.ball_team_brush.setStyle("VerPattern")
         self.ball_team = QGraphicsEllipseItem(0, 0, self.ball_size, self.ball_size, self.field)
         self.ball_team.setPen(self.ball_pen)
-        self.ball_team.setBrush(self.ball_brush)
+        self.ball_team.setBrush(self.ball_team_brush)
         self.ball_team.setVisible(False)
         self.ball_team.setOpacity(self.opacity)
 
@@ -126,13 +126,13 @@ class HumanoidLeagueFieldRqt(Plugin):
         self.resize_field()
         self.view.setScene(self._scene)
 
-        # todo implement the messages in the architecture (speak with wolves)
+        # todo dispaly data from models
         # rospy.Subscriber("/local_model", LocalModel, self.local_model_update, queue_size=100)
         # rospy.Subscriber("/global_model", GlobalModel, self.global_model_update, queue_size=100)
 
-        self.dyn_reconf = Server(field_rqt_params, self.reconfigure)
+        #self.dyn_reconf = Server(field_rqt_params, self.reconfigure)
 
-        rospy.Subscriber("/local_position", Position, self.position_cb, queue_size=10)
+        rospy.Subscriber("/local_position", Position2D, self.position_cb, queue_size=10)
 
         context.add_widget(self._widget)
 
