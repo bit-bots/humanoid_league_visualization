@@ -21,12 +21,12 @@ class ShowRobocupObjects:
 
         # object properties
         self.ball_diameter = 0.13
-        self.ball_lifetime = int(0.1 * (10 ** 9))
+        self.ball_lifetime = int(5 * (10 ** 9))
         self.post_diameter = 0.10
         self.post_height = 1.10
-        self.goal_lifetime = int(0.1 * (10 ** 9))
+        self.goal_lifetime = int(5 * (10 ** 9))
         self.obstacle_height = 1.0
-        self.obstacle_lifetime = int(1 * (10 ** 9))
+        self.obstacle_lifetime = int(5 * (10 ** 9))
         self.obstacle_def_width = 0.3
 
         # --- initilize message objects ---
@@ -112,9 +112,9 @@ class ShowRobocupObjects:
 
     def goal_cb(self, msg: GoalRelative):
         # first post
-        if len(msg.positions) > 0:
+        if msg.left_post:
             self.marker_goal_rel1.header.stamp = rospy.Time.from_sec(time.time())
-            self.goal_post1_pose.position = msg.positions[0]
+            self.goal_post1_pose.position = msg.left_post
             self.goal_post1_pose.position.z = self.post_height / 2
             self.marker_goal_rel1.pose = self.goal_post1_pose
             self.post1_color.a = msg.confidence
@@ -122,11 +122,11 @@ class ShowRobocupObjects:
             self.marker_publisher.publish(self.marker_goal_rel1)
 
         # second post
-        if len(msg.positions) > 1:
+        if msg.right_post:
             self.marker_goal_rel2.header.stamp = rospy.Time.from_sec(time.time())
-            self.goal_post2_pose.position = msg.positions[0]
+            self.goal_post2_pose.position = msg.right_post
             self.goal_post2_pose.position.z = self.post_height / 2
-            self.marker_goal_rel1.pose = self.goal_post2_pose
+            self.marker_goal_rel2.pose = self.goal_post2_pose
             self.post2_color.a = msg.confidence
             self.marker_goal_rel2.color = self.post2_color
             self.marker_publisher.publish(self.marker_goal_rel2)
@@ -139,15 +139,15 @@ class ShowRobocupObjects:
             i += 1
             self.obstacle_color.a = obstacle.confidence
             # color depding on type of obstacle
-            if obstacle.type == obstacle.CYAN_ROBOT:
+            if obstacle.color == obstacle.ROBOT_CYAN:
                 self.obstacle_color.r = 0.0
                 self.obstacle_color.g = 0.0
                 self.obstacle_color.b = 1.0
-            elif obstacle.type == obstacle.MAGENTA_ROBOT:
+            elif obstacle.color == obstacle.ROBOT_MAGENTA:
                 self.obstacle_color.r = 1.0
                 self.obstacle_color.g = 0.0
                 self.obstacle_color.b = 0.0
-            elif obstacle.type == obstacle.UNKNOWN_ROBOT:
+            elif obstacle.color == obstacle.ROBOT_UNDEFINED:
                 self.obstacle_color.r = 0.0
                 self.obstacle_color.g = 1.0
                 self.obstacle_color.b = 0.0
