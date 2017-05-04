@@ -21,7 +21,10 @@ from PyQt5.QtWidgets import QWidget
 from python_qt_binding import loadUi
 
 from rqt_gui_py.plugin import Plugin
-from humanoid_league_msgs.msg import Position
+from humanoid_league_msgs.msg import Position2D
+
+from dynamic_reconfigure.server import Server
+#from humanoid_league_field_rqt.cfg import field_rqt_params
 
 
 class HumanoidLeagueFieldRqt(Plugin):
@@ -45,6 +48,7 @@ class HumanoidLeagueFieldRqt(Plugin):
         self.robot_size = 75
         self.robot_pen_width = 5
         self.ball_size = 50
+        self.opacity = 0.5
 
         # initialize the UI
         self._widget = QWidget()
@@ -71,35 +75,81 @@ class HumanoidLeagueFieldRqt(Plugin):
         self.field = QGraphicsPixmapItem(field_image)
         self.field.setPos(0, 0)
         self._scene.addItem(self.field)
+
+
         # robot
-        self.robot = QGraphicsEllipseItem(0, 0, self.robot_size, self.robot_size, self.field)
-        self.robot_brush = QBrush(QColor(255, 0, 0))
-        self.robot.setBrush(self.robot_brush)
         self.robot_pen = QPen()
         self.robot_pen.setWidth(self.robot_pen_width)
+        self.robot_brush = QBrush(QColor(255, 0, 0))
+
+        self.robot = QGraphicsEllipseItem(0, 0, self.robot_size, self.robot_size, self.field)
+        self.robot.setBrush(self.robot_brush)
         self.robot.setPen(self.robot_pen)
         self.robot.setVisible(False)
+        self.robot.setOpacity(self.opacity)
+
+        self.robot_pers = QGraphicsEllipseItem(0, 0, self.robot_size, self.robot_size, self.field)
+        self.robot_pers.setBrush(self.robot_brush)
+        self.robot_pers.setPen(self.robot_pen)
+        self.robot_pers.setVisible(False)
+        self.robot_pers.setOpacity(self.opacity)
+
+        self.robot_team = QGraphicsEllipseItem(0, 0, self.robot_size, self.robot_size, self.field)
+        self.robot_team.setBrush(self.robot_brush)
+        self.robot_team.setPen(self.robot_pen)
+        self.robot_team.setVisible(False)
+        self.robot_team.setOpacity(self.opacity)
 
         # ball
-        self.ball = QGraphicsEllipseItem(0, 0, self.ball_size, self.ball_size, self.field)
         self.ball_pen = QPen(QColor(255, 165, 0))
         self.ball_pen.setWidth(2)
-        self.ball.setPen(self.ball_pen)
-        self.ball_brush = QBrush(QColor(255, 165, 0))
-        self.ball.setBrush(self.ball_brush)
-        self.ball.setVisible(False)
+
+        self.ball_personal_brush = QBrush(QColor(255, 165, 0))
+        #self.ball_personal_brush.setStyle("HorPattern")
+        self.ball_personal = QGraphicsEllipseItem(0, 0, self.ball_size, self.ball_size, self.field)
+        self.ball_personal.setPen(self.ball_pen)
+        self.ball_personal.setBrush(self.ball_personal_brush)
+        self.ball_personal.setVisible(False)
+        self.ball_personal.setOpacity(self.opacity)
+
+        self.ball_team_brush = QBrush(QColor(255, 165, 0))
+        #self.ball_team_brush.setStyle("VerPattern")
+        self.ball_team = QGraphicsEllipseItem(0, 0, self.ball_size, self.ball_size, self.field)
+        self.ball_team.setPen(self.ball_pen)
+        self.ball_team.setBrush(self.ball_team_brush)
+        self.ball_team.setVisible(False)
+        self.ball_team.setOpacity(self.opacity)
+
+
 
         # set the right positions and sizes
         self.resize_field()
         self.view.setScene(self._scene)
 
-        # todo implement the messages in the architecture (speak with wolves)
+        # todo dispaly data from models
         # rospy.Subscriber("/local_model", LocalModel, self.local_model_update, queue_size=100)
         # rospy.Subscriber("/global_model", GlobalModel, self.global_model_update, queue_size=100)
 
-        rospy.Subscriber("/local_position", Position, self.position_cb, queue_size=10)
+        #self.dyn_reconf = Server(field_rqt_params, self.reconfigure)
+
+        rospy.Subscriber("/local_position", Position2D, self.position_cb, queue_size=10)
 
         context.add_widget(self._widget)
+
+    def reconfigure(self, config, level):
+        # get bools of what is active and not from dyn reconfigure
+        position = config["position"]
+        personal = config["personal"]
+        team = config["team"]
+
+        # set visibilities accordingly
+        self.robot.setVisible(position)
+
+        self.robot_pers.setVisible(personal)
+        self.ball_personal.setVisible(personal)
+
+        self.robot_team.setVisible(team)
+        self.ball_team.setVisible(team)
 
     def get_center_point_xy(self):
         # to make it always fit to the current scale

@@ -10,7 +10,7 @@ from dynamic_reconfigure.server import Server
 from humanoid_league_msgs.msg import BallInImage, BallsInImage
 from sensor_msgs.msg import Image, RegionOfInterest
 from cv_bridge import CvBridge, CvBridgeError
-from humanoid_league_vision_viz.cfg import vision_viz_paramsConfig
+from humanoid_league_image_marker.cfg import image_marker_paramsConfig
 
 
 def draw_ball(cv_img, ball):
@@ -46,13 +46,13 @@ def draw_ball_candidates(cv_img, candidates):
             cv2.circle(cv_img, (i[0], i[1]), 2, (0, 0, 255), 3)
 
 
-class VisionViz:
+class ImageMarker:
     """This class starts a ROS node which takes images and draws recognized RoboCup Soccer objects on to it.
     Dynamic reconfigure is used to activate and deactive certain drawings."""
 
     def __init__(self):
         # todo implement final ball, goal posts and lines
-        rospy.init_node("bitbots_vision_viz")
+        rospy.init_node("humanoid_league_image_marker")
 
         self.bridge = CvBridge()
         self.images = OrderedDict()
@@ -73,8 +73,8 @@ class VisionViz:
         self.lines_roi_active = True
         self.line = True
 
-        self.server = Server(vision_viz_paramsConfig, self.reconfigure)
-        self.viz_publisher = rospy.Publisher("/vision_viz_image", Image, queue_size=10)
+        self.server = Server(image_marker_paramsConfig, self.reconfigure)
+        self.viz_publisher = rospy.Publisher("/image_marker_image", Image, queue_size=10)
         rospy.Subscriber("/image_raw", Image, self._image_cb, queue_size=10)
         rospy.Subscriber("/ball_candidates", BallsInImage, self._candidates_cb, queue_size=10)
 
@@ -138,4 +138,4 @@ class VisionViz:
 
 
 if __name__ == "__main__":
-    viz = VisionViz()
+    viz = ImageMarker()
