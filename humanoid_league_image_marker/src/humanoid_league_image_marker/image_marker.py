@@ -10,7 +10,7 @@ from dynamic_reconfigure.server import Server
 from humanoid_league_msgs.msg import BallInImage, BallsInImage
 from sensor_msgs.msg import Image, RegionOfInterest
 from cv_bridge import CvBridge, CvBridgeError
-from humanoid_league_image_marker.cfg import image_marker_paramsConfig
+#from humanoid_league_image_marker.cfg import image_marker_paramsConfig
 
 
 def draw_ball(cv_img, ball):
@@ -73,15 +73,15 @@ class ImageMarker:
         self.lines_roi_active = True
         self.line = True
 
-        self.server = Server(image_marker_paramsConfig, self.reconfigure)
+        #self.server = Server(image_marker_paramsConfig, self.reconfigure)
         self.viz_publisher = rospy.Publisher("/image_marker_image", Image, queue_size=10)
-        rospy.Subscriber("/image_raw", Image, self._image_cb, queue_size=10)
+        rospy.Subscriber("/usb_cam/image_raw", Image, self._image_cb, queue_size=10)
         rospy.Subscriber("/ball_candidates", BallsInImage, self._candidates_cb, queue_size=10)
 
         self.run()
 
     def run(self):
-        rate = rospy.Rate(100)
+        rate = rospy.Rate(10)
         while not rospy.is_shutdown():
             with self.img_lock:
                 images = copy.deepcopy(self.images)
@@ -90,7 +90,8 @@ class ImageMarker:
                 img = images.pop(t)  # get image from queue
                 cv_img = self.bridge.imgmsg_to_cv2(img, "bgr8")
                 with self.can_lock:
-                    if t in self.ball_candidates:  # Check if all data to draw is there
+                    if t in self.ball_candidates.keys():  # Check if all data to draw is there
+                        print("test3")
                         candidates = self.ball_candidates.pop(t)
                         # ball = self.balls.pop(t)
 
@@ -113,10 +114,8 @@ class ImageMarker:
 
     def _candidates_cb(self, msg):
         with self.can_lock:
-            rospy.logwarn("cans")
-
             self.ball_candidates[msg.header.stamp] = msg.candidates
-            if len(self.ball_candidates) > 5:
+            if len(self.ball_candidates) > 50:
                 self.ball_candidates.popitem(last=False)
 
     def reconfigure(self, config, level):

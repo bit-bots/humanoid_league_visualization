@@ -14,7 +14,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>Robocup 2D Field</string>
+   <string>Robocup Relative Object Positions</string>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout" stretch="0,0,0">
    <item>
