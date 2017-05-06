@@ -75,7 +75,7 @@ class ImageMarker:
 
         #self.server = Server(image_marker_paramsConfig, self.reconfigure)
         self.viz_publisher = rospy.Publisher("/image_marker_image", Image, queue_size=10)
-        rospy.Subscriber("/usb_cam/image_raw", Image, self._image_cb, queue_size=10)
+        rospy.Subscriber("/image_raw", Image, self._image_cb, queue_size=10)
         rospy.Subscriber("/ball_candidates", BallsInImage, self._candidates_cb, queue_size=10)
 
         self.run()
