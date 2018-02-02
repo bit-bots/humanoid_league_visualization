@@ -34,8 +34,8 @@
         </geometry>
         <material>
           <script>
-            <uri>model://teensize_ball/materials/scripts/</uri>
-            <uri>model://teensize_ball/materials/textures/</uri>
+            <uri>model://teensize_ball/materials/scripts</uri>
+            <uri>model://teensize_ball/materials/textures</uri>
             <name>RoboCup/Ball</name>
           </script>
         </material>

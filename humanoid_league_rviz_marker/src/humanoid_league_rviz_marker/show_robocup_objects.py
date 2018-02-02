@@ -100,7 +100,7 @@ class ShowRobocupObjects:
         rospy.spin()
 
     def ball_cb(self, msg: BallRelative):
-        self.marker_ball_rel.header.stamp = rospy.Time.from_sec(time.time())
+        self.marker_ball_rel.header.stamp = rospy.Time.now()
 
         self.ball_pose.position = msg.ball_relative
         self.ball_pose.position.z = self.ball_diameter / 2
@@ -113,7 +113,7 @@ class ShowRobocupObjects:
     def goal_cb(self, msg: GoalRelative):
         # first post
         if msg.left_post:
-            self.marker_goal_rel1.header.stamp = rospy.Time.from_sec(time.time())
+            self.marker_goal_rel1.header.stamp = rospy.Time.now()
             self.goal_post1_pose.position = msg.left_post
             self.goal_post1_pose.position.z = self.post_height / 2
             self.marker_goal_rel1.pose = self.goal_post1_pose
@@ -123,7 +123,7 @@ class ShowRobocupObjects:
 
         # second post
         if msg.right_post:
-            self.marker_goal_rel2.header.stamp = rospy.Time.from_sec(time.time())
+            self.marker_goal_rel2.header.stamp = rospy.Time.now()
             self.goal_post2_pose.position = msg.right_post
             self.goal_post2_pose.position.z = self.post_height / 2
             self.marker_goal_rel2.pose = self.goal_post2_pose
@@ -134,7 +134,7 @@ class ShowRobocupObjects:
     def obstacle_cb(self, msg: ObstaclesRelative):
         i = 0
         for obstacle in msg.obstacles:
-            self.marker_obstacle.header.stamp = rospy.Time.from_sec(time.time())
+            self.marker_obstacle.header.stamp = rospy.Time.now()
             self.marker_obstacle.id = i
             i += 1
             self.obstacle_color.a = obstacle.confidence

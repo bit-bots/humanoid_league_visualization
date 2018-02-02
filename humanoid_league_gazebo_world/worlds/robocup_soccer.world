@@ -50,6 +50,5 @@
 		<include>
 			<uri>model://sun</uri>
 		</include>
-<!-- 		<plugin name="foot_fixer" filename="libfoot_fixer.so" /> -->
 	</world>
 </sdf>
