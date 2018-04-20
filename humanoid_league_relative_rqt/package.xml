@@ -2,8 +2,11 @@
   <name>humanoid_league_relative_rqt</name>
   <version>1.0.0</version>
   <description>A Python GUI plugin to visualize relative positions of objects in a radar like interface. Made for usage of humanoid_league_msgs. See README for more information.</description>
-  <maintainer email="info@bit-bots.de">Hamburg Bit-Bots</maintainer>
-
+  
+  <maintainer email="bestmann@informatik.uni-hamburg.de">Marc Bestmann</maintainer>
+  <author email="bestmann@informatik.uni-hamburg.de">Marc Bestmann</author>
+  <author email="info@bit-bots.de">Hamburg Bit-Bots</author>
+  
   <license>BSD</license>
 
   <author>Marc Bestmann</author>
@@ -29,6 +32,10 @@
   <export>
     <architecture_independent/>
     <rqt_gui plugin="${prefix}/plugin.xml"/>
+    <bitbots_documentation>
+      <status>unknown</status>
+      <language>python</language>
+    </bitbots_documentation>
   </export>
 </package>
 
