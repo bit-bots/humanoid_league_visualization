@@ -26,12 +26,12 @@
 		<physics type="ode">
 			<gravity>0 0 -9.81</gravity>
 			<real_time_update_rate>2000</real_time_update_rate>
-			<max_step_size>0.0005</max_step_size>
+			<max_step_size>0.0003</max_step_size>
 			<ode>
 				<solver>
 					<type>quick</type>
-					<iters>50</iters>
-					<sor>1.4</sor>
+					<iters>200</iters>
+					<sor>1.0</sor>
 				</solver>
 				<constraints>
  					<cfm>0.0</cfm>
