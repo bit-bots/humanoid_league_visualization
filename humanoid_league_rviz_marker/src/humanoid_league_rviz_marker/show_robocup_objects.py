@@ -100,10 +100,9 @@ class ShowRobocupObjects:
         rospy.spin()
 
     def ball_cb(self, msg: BallRelative):
-        self.marker_ball_rel.header.stamp = rospy.Time.now()
+        self.marker_ball_rel.header = msg.header
 
         self.ball_pose.position = msg.ball_relative
-        self.ball_pose.position.z = self.ball_diameter / 2
         self.marker_ball_rel.pose = self.ball_pose
         self.ball_color.a = msg.confidence
         self.marker_ball_rel.color = self.ball_color
