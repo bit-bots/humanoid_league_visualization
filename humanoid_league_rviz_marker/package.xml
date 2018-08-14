@@ -20,8 +20,8 @@
 
   <export>
     <bitbots_documentation>
-      <status>unknown</status>
-      <language>python</language>
+      <status>broken</status>
+      <language>python3</language>
     </bitbots_documentation>
   </export>
 </package>
