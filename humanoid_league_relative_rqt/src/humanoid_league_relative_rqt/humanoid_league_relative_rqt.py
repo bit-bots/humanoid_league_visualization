@@ -6,6 +6,7 @@ from PyQt5 import QtGui
 
 import math
 import rospy
+import tf2_ros
 from PyQt5.QtCore import QObject
 from PyQt5.QtCore import QSize
 from PyQt5.QtGui import QBrush
@@ -24,6 +25,8 @@ from rqt_gui_py.plugin import Plugin
 
 from humanoid_league_msgs.msg import BallRelative
 from humanoid_league_msgs.msg import GoalRelative
+
+from tf2_geometry_msgs import PointStamped
 
 from dynamic_reconfigure.server import Server
 
@@ -130,6 +133,9 @@ class HumanoidLeagueRelativeRqt(Plugin):
         rospy.Subscriber("ball_relative", BallRelative, self.ball_cb, queue_size=100)
         rospy.Subscriber("goal_relative", GoalRelative, self.goal_cb, queue_size=100)
 
+        self.tf_buffer = tf2_ros.Buffer(cache_time=rospy.Duration(10.0))
+        self.tf_listener = tf2_ros.TransformListener(self.tf_buffer)
+
         context.add_widget(self._widget)
 
     def reconfigure(self, config, level):
@@ -168,24 +174,55 @@ class HumanoidLeagueRelativeRqt(Plugin):
         item.setY(x)
 
     def ball_cb(self, msg):
+        ball_point = PointStamped()
+        ball_point.header.frame_id = msg.header.frame_id
+        ball_point.header.stamp = msg.header.stamp
+        ball_point.point = msg.ball_relative
+        try:
+            ball_point = self.tf_buffer.transform(ball_point, "base_footprint")
+        except tf2_ros.LookupException:
+            rospy.logwarn("Could not transform from " + msg.header.frame_id + " to 'base_footprint'")
+            return None
         if msg.ball_relative is not None:
-            self.set_scaled_position(self.ball, -1 * msg.ball_relative.x, -1 * msg.ball_relative.y, self.ball_size,
+            self.set_scaled_position(self.ball, -1 * ball_point.point.x, -1 * ball_point.point.y, self.ball_size,
                                      self.ball_size)
         self.ball.setVisible(msg.confidence > 0 and self.ball_active)
         self.ball.setOpacity(msg.confidence)
 
     def goal_cb(self, msg):
-        self.set_scaled_position(self.left_post, -1 * msg.left_post.x, -1 * msg.left_post.y, self.post_size,
+        goal_point = PointStamped()
+        goal_point.header.frame_id = msg.header.frame_id
+        goal_point.header.stamp = msg.header.stamp
+        goal_point.point = msg.right_post
+        try:
+            goal_point = self.tf_buffer.transform(goal_point, "base_footprint")
+        except tf2_ros.LookupException:
+            rospy.logwarn("Could not transform from " + msg.header.frame_id + " to 'base_footprint'")
+            return None
+        self.set_scaled_position(self.left_post, -1 * goal_point.point.x, -1 * goal_point.pointt.y, self.post_size,
                                  self.post_size)
         self.left_post.setVisible(msg.confidence > 0 and self.goal_active)
         self.left_post.setOpacity(msg.confidence)
 
-        self.set_scaled_position(self.right_post, -1 * msg.right_post.x, -1 * msg.right_post.y, self.post_size,
+        goal_point.point = msg.left_post
+        try:
+            goal_point = self.tf_buffer.transform(goal_point, "base_footprint")
+        except tf2_ros.LookupException:
+            rospy.logwarn("Could not transform from " + msg.header.frame_id + " to 'base_footprint'")
+            return None
+
+        self.set_scaled_position(self.right_post, -1 * goal_point.point.x, -1 * goal_point.point.y, self.post_size,
                                  self.post_size)
         self.right_post.setVisible(msg.confidence > 0 and self.goal_active)
         self.right_post.setOpacity(msg.confidence)
 
-        self.set_scaled_position(self.center, -1 * msg.center_direction.x, -1 * msg.center_direction.y, self.center_size,
+        goal_point.point = msg.center_direction
+        try:
+            goal_point = self.tf_buffer.transform(goal_point, "base_footprint")
+        except tf2_ros.LookupException:
+            rospy.logwarn("Could not transform from " + msg.header.frame_id + " to 'base_footprint'")
+            return None
+        self.set_scaled_position(self.center, -1 * goal_point.point.x, -1 * goal_point.point.y, self.center_size,
                                  self.center_size)
         self.center.setOpacity(msg.confidence)
         self.center.setVisible(msg.confidence > 0 and self.goal_active)
