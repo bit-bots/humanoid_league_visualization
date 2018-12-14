@@ -4,12 +4,12 @@
     <arg name="minibot" default="false"/>
     <arg name="wolfgang" default="false"/>
 
-    <include file="$(find bitbots_localization)/launch/load_map.launch" />
+    <node name="map_server" pkg="map_server" type="map_server" output="screen" args="$(find bitbots_localization)/models/f031Lines.yaml"/>
     <node name="tf_map_odom" pkg="bitbots_move_base" type="tf_map_odom.py"/>
-    <node name="ball_marker" pkg="humanoid_league_interactive_marker" type="humanoid_league_interactive_marker.py"/>
+    <node name="ball_marker" pkg="humanoid_league_interactive_marker" type="rviz_behavior_test.py"/>
+
     <include file="$(find bitbots_quintic_walk)/launch/quintic_walk_standalone.launch">
         <arg name="sim" value="$(arg sim)"/>
-        <arg name="minibot" value="$(arg minibot)"/>
-        <arg name="wolfgang" value="$(arg wolfgang)"/>
     </include>
+
 </launch>
