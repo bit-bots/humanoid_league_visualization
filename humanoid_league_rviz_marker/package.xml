@@ -17,7 +17,7 @@
   
   <export>
     <bitbots_documentation>
-      <status>broken</status>
+      <status>unknown</status>
       <language>python3</language>
     </bitbots_documentation>
   </export>
