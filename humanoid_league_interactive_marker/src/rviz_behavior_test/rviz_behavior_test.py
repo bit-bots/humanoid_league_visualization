@@ -103,7 +103,7 @@ def pubBall(e):
 def menu_callback(feedback):
     global publish_balls
     item = feedback.menu_entry_id
-    print menu_handler.getCheckState(item)
+    print(menu_handler.getCheckState(item))
     if menu_handler.getCheckState(item) == MenuHandler.CHECKED:
         menu_handler.setCheckState(item, MenuHandler.UNCHECKED)
         publish_balls = False
