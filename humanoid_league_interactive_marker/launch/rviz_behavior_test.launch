@@ -6,7 +6,7 @@
 
     <include file="$(find bitbots_localization)/launch/load_map.launch" />
     <node name="tf_map_odom" pkg="bitbots_move_base" type="tf_map_odom.py"/>
-    <node name="ball_marker" pkg="rviz_behavior_test" type="rviz_behavior_test.py"/>
+    <node name="ball_marker" pkg="humanoid_league_interactive_marker" type="humanoid_league_interactive_marker.py"/>
     <include file="$(find bitbots_quintic_walk)/launch/quintic_walk_standalone.launch">
         <arg name="sim" value="$(arg sim)"/>
         <arg name="minibot" value="$(arg minibot)"/>

@@ -118,7 +118,7 @@ def menu_callback(feedback):
 
 if __name__ == "__main__":
     global pub, pose, item
-    rospy.init_node("rviz_behavior_test")
+    rospy.init_node("humanoid_league_interactive_marker")
 
     # create a timer to update the published transforms
     rospy.Timer(rospy.Duration(0.1), pubBall)
