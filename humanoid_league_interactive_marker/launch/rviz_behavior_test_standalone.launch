@@ -1,0 +1,17 @@
+<launch>
+
+    <arg name="sim" default="false"/>
+    <arg name="minibot" default="false"/>
+    <arg name="wolfgang" default="false"/>
+
+    <node name="map_server" pkg="map_server" type="map_server" output="screen" args="$(find bitbots_localization)/models/f031Lines.yaml"/>
+    <node name="tf_map_odom" pkg="bitbots_move_base" type="tf_map_odom.py"/>
+    <node name="ball_marker" pkg="humanoid_league_interactive_marker" type="rviz_behavior_test.py"/>
+
+    <include file="$(find bitbots_quintic_walk)/launch/quintic_walk.launch">
+        <arg name="sim" value="$(arg sim)"/>
+    </include>
+
+    <include file="$(find wolfgang_description)/launch/wolfgang_rviz.launch" />
+
+</launch>
