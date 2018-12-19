@@ -32,16 +32,18 @@ POSSIBILITY OF SUCH DAMAGE.
 import rospy
 import copy
 
+from bitbots_msgs.msg import JointCommand
 from interactive_markers.interactive_marker_server import *
 from interactive_markers.menu_handler import *
+from sensor_msgs.msg import JointState
 from visualization_msgs.msg import *
 from humanoid_league_msgs.msg import BallRelative
 from geometry_msgs.msg import Pose, Point
 
-
 server = None
 menu_handler = MenuHandler()
 publish_balls = True
+
 
 def ball_feedback(feedback):
     global pose
@@ -49,8 +51,7 @@ def ball_feedback(feedback):
     server.applyChanges()
 
 
-
-def makeSphere(msg):
+def make_sphere(msg):
     marker = Marker()
 
     marker.type = Marker.SPHERE
@@ -82,7 +83,7 @@ def make_ball_marker(position):
     int_marker.controls.append(copy.deepcopy(control))
 
     # make a box which also moves in the plane
-    control.markers.append(makeSphere(int_marker))
+    control.markers.append(make_sphere(int_marker))
     control.always_visible = True
     int_marker.controls.append(control)
 
@@ -90,15 +91,20 @@ def make_ball_marker(position):
     server.insert(int_marker, ball_feedback)
 
 
-def pubBall(e):
-    global pose, pub
+def pub_ball(e):
+    global pose, ball_pub
+
+    # construct BallRelative message
     ball = BallRelative()
     ball.header.stamp = rospy.get_rostime()
     ball.header.frame_id = "map"
     ball.confidence = 1.0
     ball.ball_relative = pose.position
+
+    # publish the new ball position
     if publish_balls:
-        pub.publish(ball)
+        ball_pub.publish(ball)
+
 
 def menu_callback(feedback):
     global publish_balls
@@ -111,29 +117,31 @@ def menu_callback(feedback):
         publish_balls = True
         menu_handler.setCheckState(item, MenuHandler.CHECKED)
 
-
     menu_handler.reApply(server)
     server.applyChanges()
 
 
 if __name__ == "__main__":
-    global pub, pose, item
+    global ball_pub, join_pos_pub, pose, item
     rospy.init_node("humanoid_league_interactive_marker")
 
-    # create a timer to update the published transforms
-    rospy.Timer(rospy.Duration(0.1), pubBall)
-
+    # retrieve InteractiveMarkerServer and setup subscribers and publishers
     server = InteractiveMarkerServer("basic_controls")
-    pub = rospy.Publisher("ball_relative", BallRelative, queue_size=1)
+
+    ball_pub = rospy.Publisher("ball_relative", BallRelative, queue_size=1)
+
     pose = Pose()
     pose.position = Point(0, 0, 0)
+
     make_ball_marker(pose.position)
+
     item = menu_handler.insert("publish ball", callback=menu_callback)
     menu_handler.setCheckState(item, MenuHandler.CHECKED)
     menu_handler.apply(server, "ball")
-    rospy.Timer(rospy.Duration(0.1), pubBall)
-
     server.applyChanges()
 
-    rospy.spin()
+    # create a timer to update the published ball transform
+    rospy.Timer(rospy.Duration(0.1), pub_ball)
 
+    # run and block until finished
+    rospy.spin()
