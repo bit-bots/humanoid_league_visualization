@@ -21,9 +21,10 @@ from PyQt5.QtWidgets import QWidget
 from python_qt_binding import loadUi
 
 from rqt_gui_py.plugin import Plugin
-from humanoid_league_msgs.msg import Position2D
+from geometry_msgs.msg import PoseWithCovarianceStamped
 
 from dynamic_reconfigure.server import Server
+from tf.transformations import euler_from_quaternion
 #from humanoid_league_field_rqt.cfg import field_rqt_params
 
 
@@ -132,7 +133,7 @@ class HumanoidLeagueFieldRqt(Plugin):
 
         #self.dyn_reconf = Server(field_rqt_params, self.reconfigure)
 
-        rospy.Subscriber("/local_position", Position2D, self.position_cb, queue_size=10)
+        rospy.Subscriber("/amcl_pose", PoseWithCovarianceStamped, self.position_cb, queue_size=10)
 
         context.add_widget(self._widget)
 
@@ -185,12 +186,11 @@ class HumanoidLeagueFieldRqt(Plugin):
         return x, y
 
     def position_cb(self, msg):
-        self.set_scaled_position(self.robot, msg.pose.x, msg.pose.y, self.robot_size, self.robot_size)
-        angle = math.degrees(msg.pose.theta) * 16  # to get to qt coordinate system
+        self.set_scaled_position(self.robot, msg.pose.pose.position.x, msg.pose.pose.position.y, self.robot_size, self.robot_size)
+        angle = math.degrees(euler_from_quaternion([msg.pose.pose.orientation.x, msg.pose.pose.orientation.y, msg.pose.pose.orientation.z, msg.pose.pose.orientation.w])[2]) * 16  # to get to qt coordinate system
         # set orientation
         self.robot.setStartAngle(angle)
         self.robot.setSpanAngle(360 * 16 - 1)
-        factor = msg.confidence * -1 + 1
-        self.robot_brush.setColor(QColor(255, 200 * factor, 200 * factor))
+        self.robot_brush.setColor(QColor(47, 83, 140))
         self.robot.setBrush(self.robot_brush)
         self.robot.setVisible(True)
