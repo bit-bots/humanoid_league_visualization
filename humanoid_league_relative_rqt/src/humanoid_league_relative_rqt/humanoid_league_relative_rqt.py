@@ -19,6 +19,7 @@ from PyQt5.QtWidgets import QGraphicsEllipseItem
 from PyQt5.QtWidgets import QGraphicsPixmapItem
 from PyQt5.QtWidgets import QGraphicsRectItem
 from PyQt5.QtWidgets import QGraphicsScene
+from PyQt5.QtWidgets import QGraphicsTextItem
 from PyQt5.QtWidgets import QWidget
 from python_qt_binding import loadUi
 
@@ -94,7 +95,22 @@ class HumanoidLeagueRelativeRqt(Plugin):
         self.radar = QGraphicsPixmapItem(field_image)
         self.radar.setPos(0, 0)
         self._scene.addItem(self.radar)
-
+        
+        # legend
+        self.legend = QGraphicsTextItem(self.radar)
+        html_legend = ('<p style="font-size: 50px;">Legend</p> \
+        <div style="font-size: 30px"><li>\
+            <ul style="color: rgb{};">Goal outline</ul>\
+            <ul style="color: rgb{};">Ball outline</ul>\
+            <ul style="color: rgb{};">Low confidence</ul>\
+            <ul style="color: rgb{};">High confidence</ul>\
+        </li></div>'.format(self.QColor2String(self.goal_outline),
+                            self.QColor2String(self.ball_outline),
+                            self.Npcolor2String(self.red),
+                            self.Npcolor2String(self.green)))
+        self.legend.setHtml(html_legend)
+        self.legend.setPos(self.image_width,50)
+        
         # ball
         self.ball_pen = QPen(self.ball_outline)
         self.ball_pen.setWidth(self.outline_thickness)
@@ -140,6 +156,12 @@ class HumanoidLeagueRelativeRqt(Plugin):
         self.tf_listener = tf2_ros.TransformListener(self.tf_buffer)
 
         context.add_widget(self._widget)
+
+    def QColor2String(self, color):
+        return ("({},{},{})".format(color.red(), color.green(), color.blue()))
+
+    def Npcolor2String(self, color):
+        return ("({},{},{})".format(color[0], color[1], color[2]))
 
     def reconfigure(self, config, level):
         # set visibilities accordingly
