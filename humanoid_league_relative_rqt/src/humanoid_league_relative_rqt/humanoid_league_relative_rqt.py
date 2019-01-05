@@ -7,6 +7,7 @@ from PyQt5 import QtGui
 import math
 import rospy
 import tf2_ros
+import numpy as np
 from PyQt5.QtCore import QObject
 from PyQt5.QtCore import QSize
 from PyQt5.QtGui import QBrush
@@ -41,6 +42,15 @@ class HumanoidLeagueRelativeRqt(Plugin):
     def __init__(self, context):
         super(HumanoidLeagueRelativeRqt, self).__init__(context)
         self.setObjectName('2dField')
+
+        # color values
+        self.green = np.array([30, 186, 44])
+        self.red = np.array([186, 45, 30])
+
+        # outlines
+        self.outline_thickness = 9
+        self.goal_outline = QColor(250, 0, 0)
+        self.ball_outline = QColor(0, 0, 250)
 
         # image values
         self.image_width = 1200.0
@@ -86,41 +96,34 @@ class HumanoidLeagueRelativeRqt(Plugin):
         self._scene.addItem(self.radar)
 
         # ball
-        self.ball_pen = QPen(QColor(255, 125, 0))
-        self.ball_pen.setWidth(2)
+        self.ball_pen = QPen(self.ball_outline)
+        self.ball_pen.setWidth(self.outline_thickness)
 
-        self.ball_brush = QBrush(QColor(255, 125, 0))
         self.ball = QGraphicsEllipseItem(0, 0, self.ball_size, self.ball_size, self.radar)
         self.ball.setPen(self.ball_pen)
-        self.ball.setBrush(self.ball_brush)
         self.ball.setVisible(False)
         self.ball.setOpacity(self.opacity)
 
         # goal posts
-        self.post_pen = QPen(QColor(200, 200, 0))
-        self.post_pen.setWidth(2)
-        self.post_brush = QBrush(QColor(200, 200, 0))
+        self.post_pen = QPen(self.goal_outline)
+        self.post_pen.setWidth(self.outline_thickness)
 
         self.left_post = QGraphicsEllipseItem(0, 0, self.post_size, self.post_size, self.radar)
         self.left_post.setPen(self.post_pen)
-        self.left_post.setBrush(self.post_brush)
         self.left_post.setVisible(False)
         self.left_post.setOpacity(self.opacity)
 
         self.right_post = QGraphicsEllipseItem(0, 0, self.post_size, self.post_size, self.radar)
         self.right_post.setPen(self.post_pen)
-        self.right_post.setBrush(self.post_brush)
         self.right_post.setVisible(False)
         self.right_post.setOpacity(self.opacity)
-
+        
         # goal center
-        self.center_pen = QPen(QColor(150, 150, 0))
-        self.center_pen.setWidth(2)
-        self.center_brush = QBrush(QColor(150, 150, 0))
+        self.center_pen = QPen(self.goal_outline)
+        self.center_pen.setWidth(self.outline_thickness)
 
         self.center = QGraphicsEllipseItem(0, 0, self.center_size, self.center_size, self.radar)
         self.center.setPen(self.center_pen)
-        self.center.setBrush(self.center_brush)
         self.center.setVisible(False)
         self.center.setOpacity(self.opacity)
 
@@ -186,43 +189,35 @@ class HumanoidLeagueRelativeRqt(Plugin):
         if msg.ball_relative is not None:
             self.set_scaled_position(self.ball, -1 * ball_point.point.x, -1 * ball_point.point.y, self.ball_size,
                                      self.ball_size)
-        self.ball.setVisible(msg.confidence > 0 and self.ball_active)
-        self.ball.setOpacity(msg.confidence)
+        
+        color_tuple = self.confidence2color(msg.confidence)
+        self.ball.setBrush(QBrush(QColor(*color_tuple))) 
+        self.ball.setVisible(self.ball_active)
 
     def goal_cb(self, msg):
+        self.draw_goal_part(self.left_post, msg, msg.left_post, self.post_size)
+        self.draw_goal_part(self.right_post, msg, msg.right_post, self.post_size)
+        self.draw_goal_part(self.center, msg, msg.center_direction, self.center_size)
+
+    def draw_goal_part(self, obj, msg, point, size):
         goal_point = PointStamped()
         goal_point.header.frame_id = msg.header.frame_id
         goal_point.header.stamp = msg.header.stamp
-        goal_point.point = msg.right_post
-        try:
-            goal_point = self.tf_buffer.transform(goal_point, "base_footprint")
-        except tf2_ros.LookupException:
-            rospy.logwarn("Could not transform from " + msg.header.frame_id + " to 'base_footprint'")
-            return None
-        self.set_scaled_position(self.left_post, -1 * goal_point.point.x, -1 * goal_point.pointt.y, self.post_size,
-                                 self.post_size)
-        self.left_post.setVisible(msg.confidence > 0 and self.goal_active)
-        self.left_post.setOpacity(msg.confidence)
-
-        goal_point.point = msg.left_post
+        goal_point.point = point
         try:
             goal_point = self.tf_buffer.transform(goal_point, "base_footprint")
         except tf2_ros.LookupException:
             rospy.logwarn("Could not transform from " + msg.header.frame_id + " to 'base_footprint'")
             return None
 
-        self.set_scaled_position(self.right_post, -1 * goal_point.point.x, -1 * goal_point.point.y, self.post_size,
-                                 self.post_size)
-        self.right_post.setVisible(msg.confidence > 0 and self.goal_active)
-        self.right_post.setOpacity(msg.confidence)
+        self.set_scaled_position(obj, -1 * goal_point.point.x, -1 * goal_point.point.y, size, size)
+        color_tuple = self.confidence2color(msg.confidence)
+        obj.setBrush(QBrush(QColor(*color_tuple)))
+        obj.setVisible(self.goal_active)
+        
+    def confidence2color(self, confidence):
+        diff = self.green - self.red
+        ball_color = self.red + diff * confidence
+        return tuple(ball_color)
 
-        goal_point.point = msg.center_direction
-        try:
-            goal_point = self.tf_buffer.transform(goal_point, "base_footprint")
-        except tf2_ros.LookupException:
-            rospy.logwarn("Could not transform from " + msg.header.frame_id + " to 'base_footprint'")
-            return None
-        self.set_scaled_position(self.center, -1 * goal_point.point.x, -1 * goal_point.point.y, self.center_size,
-                                 self.center_size)
-        self.center.setOpacity(msg.confidence)
-        self.center.setVisible(msg.confidence > 0 and self.goal_active)
+
