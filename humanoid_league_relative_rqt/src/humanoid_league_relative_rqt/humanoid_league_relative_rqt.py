@@ -27,6 +27,7 @@ from rqt_gui_py.plugin import Plugin
 
 from humanoid_league_msgs.msg import BallRelative
 from humanoid_league_msgs.msg import GoalRelative
+from humanoid_league_msgs.msg import ObstaclesRelative
 
 from tf2_geometry_msgs import PointStamped
 
@@ -52,6 +53,7 @@ class HumanoidLeagueRelativeRqt(Plugin):
         self.outline_thickness = 9
         self.goal_outline = QColor(250, 0, 0)
         self.ball_outline = QColor(0, 0, 250)
+        self.obstacle_outline = QColor(30, 30, 30)
 
         # image values
         self.image_width = 1200.0
@@ -66,6 +68,7 @@ class HumanoidLeagueRelativeRqt(Plugin):
         self.opacity = 0.75
         self.post_size = 50
         self.center_size = 30
+        self.obsacle_size = 50
 
         self.ball_active = True
         self.goal_active = True
@@ -102,10 +105,12 @@ class HumanoidLeagueRelativeRqt(Plugin):
         <div style="font-size: 30px"><li>\
             <ul style="color: rgb{};">Goal outline</ul>\
             <ul style="color: rgb{};">Ball outline</ul>\
+            <ul style="color: rgb{};">Obstacle outline</ul>\
             <ul style="color: rgb{};">Low confidence</ul>\
             <ul style="color: rgb{};">High confidence</ul>\
         </li></div>'.format(self.QColor2String(self.goal_outline),
                             self.QColor2String(self.ball_outline),
+                            self.QColor2String(self.obstacle_outline),
                             self.Npcolor2String(self.red),
                             self.Npcolor2String(self.green)))
         self.legend.setHtml(html_legend)
@@ -143,6 +148,12 @@ class HumanoidLeagueRelativeRqt(Plugin):
         self.center.setVisible(False)
         self.center.setOpacity(self.opacity)
 
+        # Obstacles
+        self.obstacle_pen = QPen(self.obstacle_outline)
+        self.obstacle_pen.setWidth(self.outline_thickness)
+        
+        self.obstacles = []
+
         # set the right positions and sizes
         self.resize_field()
         self.view.setScene(self._scene)
@@ -151,6 +162,7 @@ class HumanoidLeagueRelativeRqt(Plugin):
 
         rospy.Subscriber("ball_relative", BallRelative, self.ball_cb, queue_size=100)
         rospy.Subscriber("goal_relative", GoalRelative, self.goal_cb, queue_size=100)
+        rospy.Subscriber("obstacles_relative", ObstaclesRelative, self.obstacle_cb, queue_size=100)
 
         self.tf_buffer = tf2_ros.Buffer(cache_time=rospy.Duration(10.0))
         self.tf_listener = tf2_ros.TransformListener(self.tf_buffer)
@@ -243,3 +255,28 @@ class HumanoidLeagueRelativeRqt(Plugin):
         return tuple(ball_color)
 
 
+    def obstacle_cb(self, msg):
+        for item in self.obstacles:
+            self._scene.removeItem(item)
+
+        for obstacle_msg in msg.obstacles:
+            obstacle = QGraphicsEllipseItem(0, 0, self.obsacle_size, self.obsacle_size, self.radar)
+            obstacle.setPen(self.obstacle_pen)
+            obstacle.setOpacity(self.opacity)
+
+            obstacle_point = PointStamped()
+            obstacle_point.header.frame_id = msg.header.frame_id
+            obstacle_point.header.stamp = msg.header.stamp
+            obstacle_point.point = obstacle_msg.position
+
+            try:
+                obstacle_point = self.tf_buffer.transform(obstacle_point, "base_footprint")
+            except tf2_ros.LookupException:
+                rospy.logwarn("Could not transform from " + msg.header.frame_id + " to 'base_footprint'")
+                return None
+
+            self.set_scaled_position(obstacle, -1 * obstacle_point.point.x, -1 * obstacle_point.point.y, self.obsacle_size, self.obsacle_size)
+            color_tuple = self.confidence2color(obstacle_msg.confidence)
+            obstacle.setBrush(QBrush(QColor(*color_tuple))) 
+            obstacle.setVisible(True)
+            self.obstacles.append(obstacle)
