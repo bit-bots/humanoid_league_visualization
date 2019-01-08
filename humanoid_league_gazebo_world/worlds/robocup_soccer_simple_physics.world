@@ -24,9 +24,9 @@
 		</physics> -->
 
 		<physics type="ode">
-			<gravity>0 0 -9.81</gravity>
-			<real_time_update_rate>20000</real_time_update_rate>
-			<max_step_size>0.0003</max_step_size>
+			<gravity>0 0 0</gravity>
+			<real_time_update_rate>2000</real_time_update_rate>
+			<max_step_size>0.005</max_step_size>
 			<ode>
 				<solver>
 					<type>quick</type>
