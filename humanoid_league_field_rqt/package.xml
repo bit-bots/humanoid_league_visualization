@@ -2,7 +2,10 @@
   <name>humanoid_league_field_rqt</name>
   <version>1.0.0</version>
   <description>A Python GUI plugin to visualize data on a 2d view of a RoboCup field. See README for more information.</description>
+
   <maintainer email="bestmann@informatik.uni-hamburg.de">Marc Bestmann</maintainer>
+  <maintainer email="info@bit-bots.de">Hamburg Bit-Bots</maintainer>
+  
   <author email="bestmann@informatik.uni-hamburg.de">Marc Bestmann</author>
   <author email="info@bit-bots.de">Hamburg Bit-Bots</author>
 

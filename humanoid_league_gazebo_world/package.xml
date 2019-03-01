@@ -5,7 +5,8 @@
 	<description>Models and world file for RoboCup Humanoid League field representation in Gazebo.
 		         Author of the files is team Nimbro. Original package can be found at: https://github.com/AIS-Bonn/humanoid_op_ros</description>
 
-  	<maintainer email="bestmann@informatik.uni-hamburg.de">Marc Bestmann</maintainer>
+	<maintainer email="bestmann@informatik.uni-hamburg.de">Marc Bestmann</maintainer>
+	<maintainer email="info@bit-bots.de">Hamburg Bit-Bots</maintainer>
 	<author>Team Nimbro</author>
 
 	<license>BSD-3</license>

@@ -4,12 +4,11 @@
   <description>A Python GUI plugin to visualize relative positions of objects in a radar like interface. Made for usage of humanoid_league_msgs. See README for more information.</description>
   
   <maintainer email="bestmann@informatik.uni-hamburg.de">Marc Bestmann</maintainer>
+  <maintainer email="info@bit-bots.de">Hamburg Bit-Bots</maintainer>
   <author email="bestmann@informatik.uni-hamburg.de">Marc Bestmann</author>
   <author email="info@bit-bots.de">Hamburg Bit-Bots</author>
   
   <license>BSD</license>
-
-  <author>Marc Bestmann</author>
 
   <buildtool_depend>catkin</buildtool_depend>
 
