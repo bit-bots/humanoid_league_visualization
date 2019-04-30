@@ -96,11 +96,8 @@ class WorldModelMarkerTest:
             for obstacle_id in range(self.obstacle_count):
                 if randomly_in_sight(self.mate_poses[mate_id], self.obstacle_poses[obstacle_id], detection_rate):
                     obstacle_map_pose = self.obstacle_poses[obstacle_id]
-                    obstacle_rel_pose = Pose()
-                    obstacle_rel_pose.position.x = obstacle_map_pose.position.x - noisy_mate_pose.position.x
-                    obstacle_rel_pose.position.y = obstacle_map_pose.position.y - noisy_mate_pose.position.y
-                    obstacle_rel_pose.orientation.z = obstacle_map_pose.orientation.z - noisy_mate_pose.orientation.z
-                    td_msg.__getattribute__('opponent_robot_' + letters[obstacle_id]).append(pose_to_position2d(add_noise(obstacle_rel_pose, 1, 1, 1)))
+                    obstacle_rel_pose = transform_to_pose(obstacle_map_pose, noisy_mate_pose)
+                    td_msg.__getattribute__('opponent_robot_' + letters[obstacle_id]).append(pose_to_position2d(add_noise(obstacle_rel_pose, .1, .1, .05)))
                 else:
                     td_msg.__getattribute__('opponent_robot_' + letters[obstacle_id]).append(pose_to_position2d(dummy_pose))
             # publish mates
