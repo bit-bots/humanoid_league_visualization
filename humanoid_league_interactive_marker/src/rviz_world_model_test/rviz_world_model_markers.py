@@ -107,21 +107,15 @@ class WorldModelMarkerTest:
             mate_seen_count = 0
             for detected_mate_id in range(len(self.mate_poses)):
                 # ignore ourselves
-                if detected_mate_id == mate_id:
-                    continue
-                if randomly_in_sight(self.mate_poses[mate_id], self.mate_poses[detected_mate_id], detection_rate):
-                    mate_map_pose = self.mate_poses[mate_id]
-                    mate_rel_pose = Pose()
-                    mate_rel_pose.position.x = mate_map_pose.position.x - noisy_mate_pose.position.x
-                    mate_rel_pose.position.y = mate_map_pose.position.y - noisy_mate_pose.position.y
-                    mate_rel_pose.orientation.z = mate_map_pose.orientation.z - self.mate_poses[mate_id].orientation.z
-                    td_msg.__getattribute__('opponent_robot_' + letters[mate_seen_count]).append(pose_to_position2d(add_noise(mate_rel_pose, 1, 1, 1)))
-                else:
-                    td_msg.__getattribute__('opponent_robot_' + letters[mate_seen_count]).append(pose_to_position2d(dummy_pose))
-                mate_seen_count += 1
+                if detected_mate_id != mate_id:
+                    if randomly_in_sight(self.mate_poses[mate_id], self.mate_poses[detected_mate_id], detection_rate):
+                        mate_map_pose = self.mate_poses[detected_mate_id]
+                        mate_rel_pose = transform_to_pose(mate_map_pose, noisy_mate_pose)
+                        td_msg.__getattribute__('team_robot_' + letters[mate_seen_count]).append(pose_to_position2d(add_noise(mate_rel_pose, .1, .1, .05)))
+                    else:
+                        td_msg.__getattribute__('team_robot_' + letters[mate_seen_count]).append(pose_to_position2d(dummy_pose))
+                    mate_seen_count += 1
         self.team_data_pub.publish(td_msg)
-
-        # TODO: publish the markers directly as TeamData message! Apply noise!
 
     def spawn_ball_marker(self, position):
         int_marker = InteractiveMarker()
