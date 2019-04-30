@@ -309,6 +309,25 @@ def pose_to_position2d(pose):
     return position2d
 
 
+def transform_to_pose(detection, observer):
+    # type: (Pose, Pose) -> Pose
+    pose = Pose()
+    # detection to planar coordinate
+    r = math.sqrt((detection.position.x - observer.position.x) ** 2 + (detection.position.y - observer.position.y) ** 2)
+    d = math.atan2(detection.position.y - observer.position.y, detection.position.x - observer.position.x)
+    # add angle of detecting player
+    d -= observer.orientation.z
+    if d < -math.pi:
+        d += 2 * math.pi
+    if d > math.pi:
+        d -= 2 * math.pi
+    # back to Cartesian coordinates...
+    pose.position.x = r * math.cos(d)
+    pose.position.y = r * math.sin(d)
+
+    return pose
+
+
 def menu_callback(feedback):
     item = feedback.menu_entry_id
     print(menu_handler.getCheckState(item))
