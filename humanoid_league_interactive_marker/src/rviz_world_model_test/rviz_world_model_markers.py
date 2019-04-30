@@ -135,7 +135,6 @@ class WorldModelMarkerTest:
         control.always_visible = True
         int_marker.controls.append(control)
 
-        # we want to use our special callback function
         self.server.insert(int_marker, self.ball_feedback_callback)
 
     def spawn_obstacle_markers(self):
@@ -160,15 +159,15 @@ class WorldModelMarkerTest:
             control.always_visible = True
             int_marker.controls.append(control)
 
-            # we want to use our special callback function
-            self.server.insert(int_marker, lambda f: self.obstacle_feedback_callback(f, i))
+            self.server.insert(int_marker, self.obstacle_feedback_callback)
 
     def ball_feedback_callback(self, feedback):
         self.ball_pose = feedback.pose
         self.server.applyChanges()
 
-    def obstacle_feedback_callback(self, feedback, obstacle_id):
-        self.obstacle_poses[obstacle_id] = feedback.pose
+    def obstacle_feedback_callback(self, feedback):
+        # type: (InteractiveMarkerFeedback) -> None
+        self.obstacle_poses[int(feedback.marker_name[-1])] = feedback.pose
         self.server.applyChanges()
 
     def publish_player_markers(self):
