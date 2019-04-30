@@ -213,8 +213,8 @@ def in_sight(observer_pose, object_pose):
     # calculate relative position of the object
     x_dist = object_pose.position.x - observer_pose.position.x
     y_dist = object_pose.position.y - observer_pose.position.y
-    angle_global = math.atan2(y_dist, x_dist)
-    angle_relative = angle_global - observer_pose.orientation.z  # this is wrong, but it isn't.
+    angle_global = -math.atan2(y_dist, x_dist)
+    angle_relative = angle_global + observer_pose.orientation.z  # this is wrong, but it isn't.
     if angle_relative < -math.pi:
         angle_relative += 2 * math.pi
     if angle_relative > math.pi:
