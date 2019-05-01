@@ -36,6 +36,7 @@ class WorldModelMarkerTest:
         for i in range(self.obstacle_count):
             obstacle_pose = Pose()
             obstacle_pose.position.x = 0.1 + 0.1 * i
+            obstacle_pose.orientation.w = 1
             self.obstacle_poses.append(obstacle_pose)
 
         #self.spawn_ball_marker()
@@ -59,6 +60,7 @@ class WorldModelMarkerTest:
         dummy_pose.position.x = 1000
         dummy_pose.position.y = 1000
         dummy_pose.position.z = 1000
+        dummy_pose.orientation.w = 1
 
         letters = ('a', 'b', 'c', 'd')
         td_msg.robot_ids = list()
@@ -118,6 +120,7 @@ class WorldModelMarkerTest:
         int_marker = InteractiveMarker()
         int_marker.header.frame_id = "map"
         int_marker.pose.position = position
+        int_marker.pose.orientation.w = 1
         int_marker.scale = 1
 
         int_marker.name = "ball"
@@ -125,7 +128,7 @@ class WorldModelMarkerTest:
         control = InteractiveMarkerControl()
         control.orientation.w = 1
         control.orientation.x = 0
-        control.orientation.y = 1
+        control.orientation.y = 0
         control.orientation.z = 0
         control.interaction_mode = InteractiveMarkerControl.MOVE_PLANE
         int_marker.controls.append(copy.deepcopy(control))
@@ -149,7 +152,7 @@ class WorldModelMarkerTest:
             control = InteractiveMarkerControl()
             control.orientation.w = 1
             control.orientation.x = 0
-            control.orientation.y = 1
+            control.orientation.y = 0
             control.orientation.z = 0
             control.interaction_mode = InteractiveMarkerControl.MOVE_PLANE
             int_marker.controls.append(copy.deepcopy(control))
