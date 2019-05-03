@@ -6,11 +6,12 @@ import copy
 import math
 import random
 import numpy as np
+from tf.transformations import quaternion_from_euler
 
 from interactive_markers.interactive_marker_server import *
 from interactive_markers.menu_handler import *
 from visualization_msgs.msg import *
-from humanoid_league_msgs.msg import BallRelative, TeamData, Position2D
+from humanoid_league_msgs.msg import BallRelative, TeamData, Position2D, ObstaclesRelative, ObstacleRelative
 from geometry_msgs.msg import Pose2D, Pose, Point, PoseStamped, Vector3
 
 
@@ -24,14 +25,23 @@ class WorldModelMarkerTest:
         self.publish_ball = True
         # no difference in filtering obstacles or opponents
         self.publish_obstacle = True
-        self.obstacle_count = 1
+        self.obstacle_count = 4
         self.ball_pose = Pose()  # everything should be 0
         self.obstacle_poses = list()
         self.mate_poses = list()  # the mates include the observing player!
+        self.local_publishing_player_id = 0
+        self.team_color = ObstacleRelative.ROBOT_MAGENTA
+        self.opponent_color = ObstacleRelative.ROBOT_CYAN
 
         mate_1 = Pose()
         mate_1.position = Point(0, 0, 0)
         self.mate_poses.append(mate_1)
+        mate_2 = Pose()
+        mate_2.orientation.w = 1
+        mate_2.orientation.z = - math.pi / 1.5
+        mate_2.position.x = 2
+        mate_2.position.y = 1
+        self.mate_poses.append(mate_2)
 
         for i in range(self.obstacle_count):
             obstacle_pose = Pose()
@@ -69,36 +79,28 @@ class WorldModelMarkerTest:
 
             td_msg.robot_ids.append(mate_id)
 
-            noisy_mate_pose = add_noise(self.mate_poses[mate_id], 5, 5, 5)  # TODO set noise everywhere to useful values
+            noisy_mate_pose = add_noise(self.mate_poses[mate_id], .1, .1, .05)  # TODO set noise everywhere to useful values
 
-            td_msg.robot_positions.append(pose_to_pose2d(noisy_mate_pose))
 
-            '''
-            # dumb idea
-            # TODO: broadcast pose with noise (other frames as the local filter!)
-            t = geometry_msgs.msg.TransformStamped()
-
-            t.header.stamp = rospy.Time.now()
-            t.header.frame_id = "world"
-            t.child_frame_id = 'mate_' + str(mate_id)
-            t.transform.translation.x = mate_pose.position.x
-            t.transform.translation.y = mate_pose.position.y
-            t.transform.translation.z = 0.0
-            q = tf_conversions.transformations.quaternion_from_euler(0, 0, mate_pose.orientation.z)
-            t.transform.rotation.x = q[0]
-            t.transform.rotation.y = q[1]
-            t.transform.rotation.z = q[2]
-            t.transform.rotation.w = q[3]
-            br.sendTransform(t)
-            '''
             # TODO: ball!!!
 
-            # TODO: transform poses to relative
+            if mate_id == self.local_publishing_player_id:
+                obstacles = ObstaclesRelative()
+                obstacles.header.frame_id = 'base_footprint'
+
             # publish obstacles as opponents
             for obstacle_id in range(self.obstacle_count):
                 if randomly_in_sight(self.mate_poses[mate_id], self.obstacle_poses[obstacle_id], detection_rate):
                     obstacle_map_pose = self.obstacle_poses[obstacle_id]
                     obstacle_rel_pose = transform_to_pose(obstacle_map_pose, noisy_mate_pose)
+                    if mate_id == self.local_publishing_player_id:
+                        obstacle_msg = ObstacleRelative()
+                        obstacle_msg.position = obstacle_rel_pose.position
+                        obstacle_msg.color = self.opponent_color
+                        obstacle_msg.confidence = 1
+                        obstacle_msg.height = 0.8
+                        obstacle_msg.width = 0.2
+                        obstacles.obstacles.append(obstacle_msg)
                     td_msg.__getattribute__('opponent_robot_' + letters[obstacle_id]).append(pose_to_position2d(add_noise(obstacle_rel_pose, .1, .1, .05)))
                 else:
                     td_msg.__getattribute__('opponent_robot_' + letters[obstacle_id]).append(pose_to_position2d(dummy_pose))
@@ -110,10 +112,35 @@ class WorldModelMarkerTest:
                     if randomly_in_sight(self.mate_poses[mate_id], self.mate_poses[detected_mate_id], detection_rate):
                         mate_map_pose = self.mate_poses[detected_mate_id]
                         mate_rel_pose = transform_to_pose(mate_map_pose, noisy_mate_pose)
+                        if mate_id == self.local_publishing_player_id:
+                            obstacle_msg = ObstacleRelative()
+                            obstacle_msg.position = mate_rel_pose.position
+                            obstacle_msg.color = self.team_color
+                            obstacle_msg.confidence = 1
+                            obstacle_msg.height = 0.8
+                            obstacle_msg.width = 0.2
+                            obstacles.obstacles.append(obstacle_msg)
                         td_msg.__getattribute__('team_robot_' + letters[mate_seen_count]).append(pose_to_position2d(add_noise(mate_rel_pose, .1, .1, .05)))
                     else:
                         td_msg.__getattribute__('team_robot_' + letters[mate_seen_count]).append(pose_to_position2d(dummy_pose))
                     mate_seen_count += 1
+
+            quaternion = quaternion_from_euler(0, 0, noisy_mate_pose.orientation.z)
+            noisy_mate_pose.orientation.x = quaternion[0]
+            noisy_mate_pose.orientation.y = quaternion[1]
+            noisy_mate_pose.orientation.z = quaternion[2]
+            noisy_mate_pose.orientation.w = quaternion[3]
+            td_msg.robot_positions.append(pose_to_pose2d(noisy_mate_pose))
+
+            self_marker = Marker()
+            self_marker.id = 1230 + mate_id
+            self_marker.action = Marker.ADD
+            self_marker.type = Marker.ARROW
+            self_marker.pose = noisy_mate_pose
+            self_marker.scale.x = 0.05
+            self_marker.scale.y = 0.05
+            self_marker.scale.z = 0.5
+            self.player_marker_pub.publish(self_marker)
         self.team_data_pub.publish(td_msg)
 
     def spawn_ball_marker(self, position):
@@ -174,6 +201,7 @@ class WorldModelMarkerTest:
         self.server.applyChanges()
 
     def publish_player_markers(self):
+
         distance = 9
         marker_msg = Marker()
         marker_msg.type = Marker.TRIANGLE_LIST
@@ -237,9 +265,9 @@ def distance(pose_a, pose_b):
 def add_noise(in_pose, sigma_x, sigma_y, sigma_theta):
     # type: (Pose, float, float, float) -> Pose
     pose = copy.deepcopy(in_pose)
-    x_offset = .1 * np.random.normal(0, sigma_x, 1)
-    y_offset = .1 * np.random.normal(0, sigma_y, 1)
-    theta_offset = .1 * np.random.normal(0, sigma_theta, 1)
+    x_offset = .01 * np.random.normal(0, sigma_x, 1)
+    y_offset = .01 * np.random.normal(0, sigma_y, 1)
+    theta_offset = .01 * np.random.normal(0, sigma_theta, 1)
     pose.position.x += x_offset
     pose.position.y += y_offset
     pose.orientation.z += theta_offset
