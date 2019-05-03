@@ -1,12 +1,15 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python2
 
 import rospy
 import time
 
+import tf2_ros as tf2
+from tf2_geometry_msgs import PointStamped
+import tf_conversions
 from geometry_msgs.msg import Pose, Vector3
 from std_msgs.msg import ColorRGBA
 from visualization_msgs.msg import MarkerArray, Marker
-from humanoid_league_msgs.msg import BallRelative, GoalRelative, ObstaclesRelative
+from humanoid_league_msgs.msg import BallRelative, GoalRelative, ObstaclesRelative, TeamData
 
 
 class ShowRobocupObjects:
@@ -28,6 +31,8 @@ class ShowRobocupObjects:
         self.obstacle_height = 1.0
         self.obstacle_lifetime = int(5 * (10 ** 9))
         self.obstacle_def_width = 0.3
+        self.tf_buffer = tf2.Buffer(rospy.Duration(5))
+        self.tf_listener = tf2.TransformListener(self.tf_buffer)
 
         # --- initilize message objects ---
         # Most of the message information stay the same. It is more performant to set them just one time
@@ -99,7 +104,7 @@ class ShowRobocupObjects:
         # we do everything in the callbacks
         rospy.spin()
 
-    def ball_cb(self, msg: BallRelative):
+    def ball_cb(self, msg):
         self.marker_ball_rel.header = msg.header
 
         self.ball_pose.position = msg.ball_relative
@@ -109,10 +114,10 @@ class ShowRobocupObjects:
 
         self.marker_publisher.publish(self.marker_ball_rel)
 
-    def goal_cb(self, msg: GoalRelative):
+    def goal_cb(self, msg):
         # first post
         if msg.left_post:
-            self.marker_goal_rel1.header.stamp = rospy.Time.now()
+            self.marker_goal_rel1.header = msg.header
             self.goal_post1_pose.position = msg.left_post
             self.goal_post1_pose.position.z = self.post_height / 2
             self.marker_goal_rel1.pose = self.goal_post1_pose
@@ -122,7 +127,7 @@ class ShowRobocupObjects:
 
         # second post
         if msg.right_post:
-            self.marker_goal_rel2.header.stamp = rospy.Time.now()
+            self.marker_goal_rel2.header = msg.header
             self.goal_post2_pose.position = msg.right_post
             self.goal_post2_pose.position.z = self.post_height / 2
             self.marker_goal_rel2.pose = self.goal_post2_pose
@@ -130,10 +135,11 @@ class ShowRobocupObjects:
             self.marker_goal_rel2.color = self.post2_color
             self.marker_publisher.publish(self.marker_goal_rel2)
 
-    def obstacle_cb(self, msg: ObstaclesRelative):
+    def obstacle_cb(self, msg):
         i = 0
         for obstacle in msg.obstacles:
-            self.marker_obstacle.header.stamp = rospy.Time.now()
+            self.marker_obstacle.header = msg.header
+            self.marker_obstacle.header = self.frame_id
             self.marker_obstacle.id = i
             i += 1
             self.obstacle_color.a = obstacle.confidence
@@ -164,8 +170,10 @@ class ShowRobocupObjects:
             self.marker_obstacle.scale = scale
 
             # position
-            self.obstacle_pose.position = obstacle.position
-            self.obstacle_pose.position.z = self.obstacle_height / 2
+            position = PointStamped(msg.header, obstacle.position)
+            tf_point = self.tf_buffer.transform(position, self.frame_id, timeout=rospy.Duration(0.5)).point
+            self.obstacle_pose.position = tf_point
+            # self.obstacle_pose.position.z = self.obstacle_height / 2
             self.marker_obstacle.pose = self.obstacle_pose
 
             self.marker_publisher.publish(self.marker_obstacle)
