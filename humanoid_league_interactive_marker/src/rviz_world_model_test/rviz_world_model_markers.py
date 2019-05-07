@@ -6,7 +6,7 @@ import copy
 import math
 import random
 import numpy as np
-from tf.transformations import quaternion_from_euler
+from tf.transformations import quaternion_from_euler, euler_from_quaternion
 
 from interactive_markers.interactive_marker_server import *
 from interactive_markers.menu_handler import *
@@ -155,7 +155,7 @@ class WorldModelMarkerTest:
         control = InteractiveMarkerControl()
         control.orientation.w = 1
         control.orientation.x = 0
-        control.orientation.y = 0
+        control.orientation.y = 1
         control.orientation.z = 0
         control.interaction_mode = InteractiveMarkerControl.MOVE_PLANE
         int_marker.controls.append(copy.deepcopy(control))
@@ -179,7 +179,7 @@ class WorldModelMarkerTest:
             control = InteractiveMarkerControl()
             control.orientation.w = 1
             control.orientation.x = 0
-            control.orientation.y = 0
+            control.orientation.y = 1
             control.orientation.z = 0
             control.interaction_mode = InteractiveMarkerControl.MOVE_PLANE
             int_marker.controls.append(copy.deepcopy(control))
@@ -318,7 +318,8 @@ def pose_to_pose2d(pose):
     pose2d = Pose2D()
     pose2d.x = pose.position.x
     pose2d.y = pose.position.y
-    pose2d.theta = pose.orientation.z
+    euler = euler_from_quaternion((pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w))
+    pose2d.theta = euler[2]
     return pose2d
 
 
