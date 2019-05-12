@@ -114,6 +114,7 @@ class BallMarker(RobocupInteractiveMarker):
         marker.scale.x = BALL_DIAMETER
         marker.scale.y = BALL_DIAMETER
         marker.scale.z = BALL_DIAMETER
+        marker.pose.position.z = BALL_DIAMETER / 2
         marker.color.r = 1.0
         marker.color.g = 0.0
         marker.color.b = 0.0
