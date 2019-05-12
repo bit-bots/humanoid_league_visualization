@@ -33,11 +33,9 @@ import rospy
 import copy
 import math
 
-from bitbots_msgs.msg import JointCommand
-from interactive_markers.interactive_marker_server import *
-from interactive_markers.menu_handler import *
-from sensor_msgs.msg import JointState
-from visualization_msgs.msg import *
+from interactive_markers.interactive_marker_server import InteractiveMarkerServer
+from interactive_markers.menu_handler import MenuHandler
+from visualization_msgs.msg import InteractiveMarker, InteractiveMarkerControl, Marker
 from humanoid_league_msgs.msg import BallRelative, GoalRelative
 from geometry_msgs.msg import Pose, Point, Quaternion, Vector3
 from tf.transformations import euler_from_quaternion
@@ -88,7 +86,7 @@ class RobocupInteractiveMarker(object):
         control.orientation.x = 0
         control.orientation.y = math.sqrt(2) / 2
         control.orientation.z = 0
-        control.interaction_mode = self.interaction_mode  # InteractiveMarkerControl.MOVE_PLANE or MOVE_ROTATE
+        control.interaction_mode = self.interaction_mode
         int_marker.controls.append(copy.deepcopy(control))
 
         # make a box which also moves in the plane
