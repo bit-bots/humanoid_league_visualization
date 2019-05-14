@@ -31,117 +31,187 @@ POSSIBILITY OF SUCH DAMAGE.
 
 import rospy
 import copy
+import math
 
-from bitbots_msgs.msg import JointCommand
-from interactive_markers.interactive_marker_server import *
-from interactive_markers.menu_handler import *
-from sensor_msgs.msg import JointState
-from visualization_msgs.msg import *
-from humanoid_league_msgs.msg import BallRelative
-from geometry_msgs.msg import Pose, Point
+from interactive_markers.interactive_marker_server import InteractiveMarkerServer
+from interactive_markers.menu_handler import MenuHandler
+from visualization_msgs.msg import InteractiveMarker, InteractiveMarkerControl, Marker
+from humanoid_league_msgs.msg import BallRelative, GoalRelative
+from geometry_msgs.msg import Pose, Point, Quaternion, Vector3
+from tf.transformations import euler_from_quaternion
 
-server = None
-menu_handler = MenuHandler()
-publish_balls = True
-
-
-def ball_feedback(feedback):
-    global pose
-    pose = feedback.pose
-    server.applyChanges()
+BALL_DIAMETER = 0.13
+GOAL_WIDTH = 1.5
+GOAL_HEIGHT = 1.1
+POST_DIAMETER = 0.1
 
 
-def make_sphere(msg):
-    marker = Marker()
+class RobocupInteractiveMarker(object):
+    def __init__(self, server):
+        self.server = server
+        self.pose = Pose()
+        self.publish = True
+        self.make_marker()
+        self.menu_handler = MenuHandler()
+        item = self.menu_handler.insert("publish", callback=self.menu_callback)
+        self.menu_handler.setCheckState(item, MenuHandler.CHECKED)
+        self.menu_handler.apply(self.server, self.marker_name)
 
-    marker.type = Marker.SPHERE
-    marker.scale.x = msg.scale * 0.13
-    marker.scale.y = msg.scale * 0.13
-    marker.scale.z = msg.scale * 0.13
-    marker.color.r = 1.0
-    marker.color.g = 0.0
-    marker.color.b = 0.0
-    marker.color.a = 1.0
+    def feedback(self, feedback):
+        self.pose = feedback.pose
+        self.server.applyChanges()
 
-    return marker
+    def menu_callback(self, feedback):
+        item = feedback.menu_entry_id
+        if self.menu_handler.getCheckState(item) == MenuHandler.CHECKED:
+            self.menu_handler.setCheckState(item, MenuHandler.UNCHECKED)
+            self.publish = False
+        else:
+            self.publish = True
+            self.menu_handler.setCheckState(item, MenuHandler.CHECKED)
 
+        self.menu_handler.reApply(self.server)
+        self.server.applyChanges()
 
-def make_ball_marker(position):
-    int_marker = InteractiveMarker()
-    int_marker.header.frame_id = "map"
-    int_marker.pose.position = position
-    int_marker.scale = 1
+    def make_marker(self):
+        int_marker = InteractiveMarker()
+        int_marker.header.frame_id = "map"
+        int_marker.pose = self.pose
+        int_marker.scale = 1
 
-    int_marker.name = "ball"
+        int_marker.name = self.marker_name
 
-    control = InteractiveMarkerControl()
-    control.orientation.w = 1
-    control.orientation.x = 0
-    control.orientation.y = 1
-    control.orientation.z = 0
-    control.interaction_mode = InteractiveMarkerControl.MOVE_PLANE
-    int_marker.controls.append(copy.deepcopy(control))
+        control = InteractiveMarkerControl()
+        control.orientation.w = math.sqrt(2) / 2
+        control.orientation.x = 0
+        control.orientation.y = math.sqrt(2) / 2
+        control.orientation.z = 0
+        control.interaction_mode = self.interaction_mode
+        int_marker.controls.append(copy.deepcopy(control))
 
-    # make a box which also moves in the plane
-    control.markers.append(make_sphere(int_marker))
-    control.always_visible = True
-    int_marker.controls.append(control)
+        # make a box which also moves in the plane
+        markers = self.make_individual_markers(int_marker)
+        for marker in markers:
+            control.markers.append(marker)
+        control.always_visible = True
+        int_marker.controls.append(control)
 
-    # we want to use our special callback function
-    server.insert(int_marker, ball_feedback)
-
-
-def pub_ball(e):
-    global pose, ball_pub
-
-    # construct BallRelative message
-    ball = BallRelative()
-    ball.header.stamp = rospy.get_rostime()
-    ball.header.frame_id = "map"
-    ball.confidence = 1.0
-    ball.ball_relative = pose.position
-
-    # publish the new ball position
-    if publish_balls:
-        ball_pub.publish(ball)
+        # we want to use our special callback function
+        self.server.insert(int_marker, self.feedback)
 
 
-def menu_callback(feedback):
-    global publish_balls
-    item = feedback.menu_entry_id
-    print(menu_handler.getCheckState(item))
-    if menu_handler.getCheckState(item) == MenuHandler.CHECKED:
-        menu_handler.setCheckState(item, MenuHandler.UNCHECKED)
-        publish_balls = False
-    else:
-        publish_balls = True
-        menu_handler.setCheckState(item, MenuHandler.CHECKED)
+class BallMarker(RobocupInteractiveMarker):
+    def __init__(self, server):
+        self.marker_name = "ball"
+        self.interaction_mode = InteractiveMarkerControl.MOVE_PLANE
+        self.publisher = rospy.Publisher("ball_relative", BallRelative, queue_size=1)
+        super(BallMarker, self).__init__(server)
 
-    menu_handler.reApply(server)
-    server.applyChanges()
+    def make_individual_markers(self, msg):
+        marker = Marker()
+
+        marker.type = Marker.SPHERE
+        marker.scale.x = BALL_DIAMETER
+        marker.scale.y = BALL_DIAMETER
+        marker.scale.z = BALL_DIAMETER
+        marker.pose.position.z = BALL_DIAMETER / 2
+        marker.color.r = 1.0
+        marker.color.g = 0.0
+        marker.color.b = 0.0
+        marker.color.a = 1.0
+
+        return (marker,)
+
+    def publish_marker(self, e):
+        # construct BallRelative message
+        ball = BallRelative()
+        ball.header.stamp = rospy.get_rostime()
+        ball.header.frame_id = "map"
+        ball.confidence = 1.0
+        ball.ball_relative = self.pose.position
+
+        # publish the new ball position
+        if self.publish:
+            self.publisher.publish(ball)
+
+
+class GoalMarker(RobocupInteractiveMarker):
+    def __init__(self, server):
+        self.marker_name = "goal"
+        self.interaction_mode = InteractiveMarkerControl.MOVE_ROTATE
+        self.publisher = rospy.Publisher("goal_relative", GoalRelative, queue_size=1)
+        super(GoalMarker, self).__init__(server)
+
+    def make_individual_markers(self, msg):
+        lpost = Marker()
+        lpost.type = Marker.CYLINDER
+        lpost.scale = Vector3(POST_DIAMETER, POST_DIAMETER, GOAL_HEIGHT)
+        lpost.color.r = 1.0
+        lpost.color.g = 1.0
+        lpost.color.b = 1.0
+        lpost.color.a = 1.0
+        lpost.pose.position = Point(0, GOAL_WIDTH / 2, GOAL_HEIGHT / 2)
+
+        rpost = Marker()
+        rpost.type = Marker.CYLINDER
+        rpost.scale = Vector3(POST_DIAMETER, POST_DIAMETER, GOAL_HEIGHT)
+        rpost.color.r = 1.0
+        rpost.color.g = 1.0
+        rpost.color.b = 1.0
+        rpost.color.a = 1.0
+        rpost.pose.position = Point(0, - GOAL_WIDTH / 2, GOAL_HEIGHT / 2)
+
+        bar = Marker()
+        bar.type = Marker.CYLINDER
+        bar.scale = Vector3(POST_DIAMETER, POST_DIAMETER, GOAL_WIDTH)
+        bar.color.r = 1.0
+        bar.color.g = 1.0
+        bar.color.b = 1.0
+        bar.color.a = 1.0
+        bar.pose.position = Point(0, 0, GOAL_HEIGHT)
+        bar.pose.orientation = Quaternion(math.sqrt(2) / 2, 0, 0, math.sqrt(2) / 2)
+
+        return (lpost, rpost, bar)
+
+    def publish_marker(self, e):
+        # construct GoalRelative message
+        goal = GoalRelative()
+        goal.header.stamp = rospy.get_rostime()
+        goal.header.frame_id = "map"
+        goal.confidence = 1.0
+        # calculate the positions of the right and the left post
+        orientation = euler_from_quaternion((self.pose.orientation.x, self.pose.orientation.y,
+                                             self.pose.orientation.z, self.pose.orientation.w))
+        angle = orientation[2]
+        left_post = Point()
+        left_post.x = self.pose.position.x - math.sin(angle) * GOAL_WIDTH / 2
+        left_post.y = self.pose.position.y + math.cos(angle) * GOAL_WIDTH / 2
+
+        right_post = Point()
+        right_post.x =  self.pose.position.x + math.sin(angle) * GOAL_WIDTH / 2
+        right_post.y = self.pose.position.y - math.cos(angle) * GOAL_WIDTH / 2
+
+        goal.left_post = left_post
+        goal.right_post = right_post
+
+        # publish the new goal position
+        if self.publish:
+            self.publisher.publish(goal)
 
 
 if __name__ == "__main__":
-    global ball_pub, join_pos_pub, pose, item
     rospy.init_node("humanoid_league_interactive_marker")
 
     # retrieve InteractiveMarkerServer and setup subscribers and publishers
     server = InteractiveMarkerServer("basic_controls")
+    ball = BallMarker(server)
+    goal = GoalMarker(server)
 
-    ball_pub = rospy.Publisher("ball_relative", BallRelative, queue_size=1)
-
-    pose = Pose()
-    pose.position = Point(0, 0, 0)
-
-    make_ball_marker(pose.position)
-
-    item = menu_handler.insert("publish ball", callback=menu_callback)
-    menu_handler.setCheckState(item, MenuHandler.CHECKED)
-    menu_handler.apply(server, "ball")
     server.applyChanges()
 
     # create a timer to update the published ball transform
-    rospy.Timer(rospy.Duration(0.1), pub_ball)
+    rospy.Timer(rospy.Duration(0.1), ball.publish_marker)
+    rospy.Timer(rospy.Duration(0.1), goal.publish_marker)
 
     # run and block until finished
     rospy.spin()

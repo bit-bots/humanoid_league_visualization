@@ -1,16 +1,21 @@
 <launch>
-
     <include file="$(find bitbots_bringup)/launch/load_robot_description.launch">
         <arg name="wolfgang" value="true"/>
     </include>
 
-    <param name="use_gui" value="true"/>
+    <include file="$(find bitbots_move_base)/launch/pathfinding_move_base.launch" />
+    <include file="$(find bitbots_quintic_walk)/launch/quintic_walk.launch">
+        <arg name="sim" value="true"/>
+    </include>
+    <include file="$(find bitbots_animation_server)/launch/animation.launch" />
+    <include file="$(find bitbots_hcm)/launch/hcm.launch">
+        <arg name="sim" value="true"/>
+    </include>
 
     <node name="rviz" pkg="rviz" type="rviz" output="screen" required="true"
           args="-d $(find wolfgang_description)/config/wolfgang.rviz">
     </node>
 
     <node name="ball_marker" pkg="humanoid_league_interactive_marker" type="rviz_behavior_test.py"/>
-    <node name="goals_to_joint_states" pkg="bitbots_bringup" type="goals_to_joint_states.py"/>
-
+    <node name="motor_goals_viz_helper" pkg="bitbots_bringup" type="motor_goals_viz_helper.py"/>
 </launch>

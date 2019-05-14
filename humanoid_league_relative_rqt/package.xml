@@ -13,6 +13,9 @@
   <buildtool_depend>catkin</buildtool_depend>
 
   <build_depend>humanoid_league_msgs</build_depend>
+  <depend>rospy</depend>
+  <depend>std_msgs</depend>
+  <depend>dynamic_reconfigure</depend>
   <exec_depend version_gte="0.2.19">python_qt_binding</exec_depend>
   <exec_depend>python-rospkg</exec_depend>
   <exec_depend>qt_dotgraph</exec_depend>
@@ -20,13 +23,11 @@
   <exec_depend>rosgraph_msgs</exec_depend>
   <exec_depend>roslib</exec_depend>
   <exec_depend>rosnode</exec_depend>
-  <exec_depend>rospy</exec_depend>
   <exec_depend>rosservice</exec_depend>
   <exec_depend>rostopic</exec_depend>
   <exec_depend>rqt_gui</exec_depend>
   <exec_depend>rqt_gui_py</exec_depend>
   <exec_depend>humanoid_league_msgs</exec_depend>
-
 
   <export>
     <architecture_independent/>

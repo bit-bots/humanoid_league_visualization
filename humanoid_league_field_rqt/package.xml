@@ -23,12 +23,15 @@
   <exec_depend>rosgraph_msgs</exec_depend>
   <exec_depend>roslib</exec_depend>
   <exec_depend>rosnode</exec_depend>
-  <exec_depend>rospy</exec_depend>
   <exec_depend>rosservice</exec_depend>
   <exec_depend>rostopic</exec_depend>
   <exec_depend>rqt_gui</exec_depend>
   <exec_depend>rqt_gui_py</exec_depend>
   <exec_depend>humanoid_league_msgs</exec_depend>
+
+  <depend>rospy</depend>
+  <depend>dynamic_reconfigure</depend>
+  <depend>std_msgs</depend>
 
 
   <export>
