@@ -13,7 +13,7 @@
     </include>
 
     <node name="rviz" pkg="rviz" type="rviz" output="screen" required="true"
-          args="-d $(find wolfgang_description)/config/wolfgang.rviz">
+          args="-d $(find humanoid_league_interactive_marker)/config/behavior_test.rviz">
     </node>
 
     <node name="ball_marker" pkg="humanoid_league_interactive_marker" type="rviz_behavior_test.py"/>
