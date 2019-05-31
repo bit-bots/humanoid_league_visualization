@@ -211,7 +211,7 @@
       </visual>
 
       <visual name="penalty_a">
-        <pose>-2.40 0 0 0 0 0</pose>
+        <pose>-3.0 0 0 0 0 0</pose>
         <cast_shadows>false</cast_shadows>
         <geometry>
           <cylinder>
@@ -228,7 +228,7 @@
       </visual>
 
       <visual name="penalty_b">
-        <pose>2.40 0 0 0 0 0</pose>
+        <pose>3.0 0 0 0 0 0</pose>
         <cast_shadows>false</cast_shadows>
         <geometry>
           <cylinder>
