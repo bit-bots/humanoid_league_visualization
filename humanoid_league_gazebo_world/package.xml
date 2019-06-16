@@ -14,6 +14,9 @@
 	<buildtool_depend>catkin</buildtool_depend>
 	<exec_depend>gazebo_ros</exec_depend>
 	<depend>urdf</depend>
+    <depend>gazebo_ros_control</depend>
+    <depend>effort_controllers</depend>
+    <depend>joint_state_controller</depend>
 	
 	<export>
 		<!-- gazebo_ros_paths_plugin automatically adds these to
