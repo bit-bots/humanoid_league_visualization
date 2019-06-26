@@ -11,7 +11,7 @@
     <include file="$(find bitbots_hcm)/launch/hcm.launch">
         <arg name="sim" value="true"/>
     </include>
-    <include file="$(bitbots_odometry)/launch/odometry_fuser.launch" />
+    <include file="$(find bitbots_odometry)/launch/odometry_fuser.launch" />
 
     <node name="rviz" pkg="rviz" type="rviz" output="screen" required="true"
           args="-d $(find humanoid_league_interactive_marker)/config/behavior_test.rviz">
