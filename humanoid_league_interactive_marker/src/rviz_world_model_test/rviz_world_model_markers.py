@@ -19,13 +19,14 @@ class WorldModelMarkerTest:
     def __init__(self):
         self.server = InteractiveMarkerServer("basic_controls")
         self.team_data_pub = rospy.Publisher("team_data", TeamData, queue_size=1)
+        self.ground_truth_pub = rospy.Publisher("ground_truth_obstacles", ObstaclesRelative, queue_size=1)
         self.player_marker_pub = rospy.Publisher("player_marker", Marker, queue_size=1)
 
         self.menu_handler = MenuHandler()
         self.publish_ball = True
         # no difference in filtering obstacles or opponents
         self.publish_obstacle = True
-        self.obstacle_count = 4
+        self.obstacle_count = 1
         self.ball_pose = Pose()  # everything should be 0
         self.obstacle_poses = list()
         self.mate_poses = list()  # the mates include the observing player!
@@ -34,18 +35,30 @@ class WorldModelMarkerTest:
         self.opponent_color = ObstacleRelative.ROBOT_CYAN
 
         mate_1 = Pose()
-        mate_1.position = Point(0, 0, 0)
+        mate_1.position = Point(-4, 0, 0)
         self.mate_poses.append(mate_1)
         mate_2 = Pose()
         mate_2.orientation.w = 1
-        mate_2.orientation.z = - math.pi / 1.5
-        mate_2.position.x = 2
-        mate_2.position.y = 1
+        mate_2.orientation.z = math.pi / 2
+        mate_2.position.x = 0
+        mate_2.position.y = -4
         self.mate_poses.append(mate_2)
+        mate_3 = Pose()
+        mate_3.orientation.w = 1
+        mate_3.orientation.z = - math.pi
+        mate_3.position.y = 0
+        mate_3.position.x = 4
+        #self.mate_poses.append(mate_3)
+        mate_4 = Pose()
+        mate_4.orientation.w = 1
+        mate_4.orientation.z = - math.pi / 2
+        mate_4.position.x = 0
+        mate_4.position.y = 4
+        #self.mate_poses.append(mate_4)
 
         for i in range(self.obstacle_count):
             obstacle_pose = Pose()
-            obstacle_pose.position.x = 0.1 + 0.1 * i
+            obstacle_pose.position.x = 0.1 * i
             obstacle_pose.orientation.w = 1
             self.obstacle_poses.append(obstacle_pose)
 
@@ -79,7 +92,7 @@ class WorldModelMarkerTest:
 
             td_msg.robot_ids.append(mate_id)
 
-            noisy_mate_pose = add_noise(self.mate_poses[mate_id], .1, .1, .05)  # TODO set noise everywhere to useful values
+            noisy_mate_pose = add_noise(self.mate_poses[mate_id], .1, .1, .12)  # TODO set noise everywhere to useful values
 
 
             # TODO: ball!!!
@@ -101,7 +114,7 @@ class WorldModelMarkerTest:
                         obstacle_msg.height = 0.8
                         obstacle_msg.width = 0.2
                         obstacles.obstacles.append(obstacle_msg)
-                    td_msg.__getattribute__('opponent_robot_' + letters[obstacle_id]).append(pose_to_position2d(add_noise(obstacle_rel_pose, .1, .1, .05)))
+                    td_msg.__getattribute__('opponent_robot_' + letters[obstacle_id]).append(pose_to_position2d(add_noise(obstacle_rel_pose, .1, .1, .5)))
                 else:
                     td_msg.__getattribute__('opponent_robot_' + letters[obstacle_id]).append(pose_to_position2d(dummy_pose))
             # publish mates
@@ -120,7 +133,7 @@ class WorldModelMarkerTest:
                             obstacle_msg.height = 0.8
                             obstacle_msg.width = 0.2
                             obstacles.obstacles.append(obstacle_msg)
-                        td_msg.__getattribute__('team_robot_' + letters[mate_seen_count]).append(pose_to_position2d(add_noise(mate_rel_pose, .1, .1, .05)))
+                        td_msg.__getattribute__('team_robot_' + letters[mate_seen_count]).append(pose_to_position2d(add_noise(mate_rel_pose, .1, .1, .5)))
                     else:
                         td_msg.__getattribute__('team_robot_' + letters[mate_seen_count]).append(pose_to_position2d(dummy_pose))
                     mate_seen_count += 1
@@ -141,6 +154,7 @@ class WorldModelMarkerTest:
             self_marker.scale.y = 0.05
             self_marker.scale.z = 0.5
             self.player_marker_pub.publish(self_marker)
+        self.publish_ground_truth()
         self.team_data_pub.publish(td_msg)
 
     def spawn_ball_marker(self, position):
@@ -229,6 +243,21 @@ class WorldModelMarkerTest:
 
         self.player_marker_pub.publish(marker_msg)
 
+    def publish_ground_truth(self):
+        gt_msg = ObstaclesRelative()
+
+        gt_msg.header.frame_id = 'map'
+
+        for object in self.obstacle_poses:
+            obstacle_msg = ObstacleRelative()
+            obstacle_msg.position = object.position
+            obstacle_msg.position.z = 0
+            obstacle_msg.confidence = 1
+            obstacle_msg.color = ObstacleRelative.ROBOT_UNDEFINED
+            gt_msg.obstacles.append(obstacle_msg)
+        self.ground_truth_pub.publish(gt_msg)
+
+
 
 def randomly_in_sight(observer_pose, object_pose, detection_chance):
     # type: (Pose, Pose, float) -> bool
@@ -265,9 +294,9 @@ def distance(pose_a, pose_b):
 def add_noise(in_pose, sigma_x, sigma_y, sigma_theta):
     # type: (Pose, float, float, float) -> Pose
     pose = copy.deepcopy(in_pose)
-    x_offset = .01 * np.random.normal(0, sigma_x, 1)
-    y_offset = .01 * np.random.normal(0, sigma_y, 1)
-    theta_offset = .01 * np.random.normal(0, sigma_theta, 1)
+    x_offset = 1 * np.random.normal(0, sigma_x, 1)
+    y_offset = 1 * np.random.normal(0, sigma_y, 1)
+    theta_offset = 1 * np.random.normal(0, sigma_theta, 1)
     pose.position.x += x_offset
     pose.position.y += y_offset
     pose.orientation.z += theta_offset
@@ -296,10 +325,11 @@ def make_cube(msg):
     marker.scale.x = msg.scale * 0.2
     marker.scale.y = msg.scale * 0.2
     marker.scale.z = msg.scale * 1
-    marker.color.r = 0.0
-    marker.color.g = 0.0
+    marker.color.r = 1.0
+    marker.color.g = 1.0
     marker.color.b = 0.0
     marker.color.a = 1.0
+    marker.pose.position.z = msg.scale * 0.5
 
     return marker
 
@@ -348,20 +378,6 @@ def transform_to_pose(detection, observer):
     pose.position.y = r * math.sin(d)
 
     return pose
-
-
-def menu_callback(feedback):
-    item = feedback.menu_entry_id
-    print(menu_handler.getCheckState(item))
-    if menu_handler.getCheckState(item) == MenuHandler.CHECKED:
-        menu_handler.setCheckState(item, MenuHandler.UNCHECKED)
-        publish_balls = False
-    else:
-        publish_balls = True
-        menu_handler.setCheckState(item, MenuHandler.CHECKED)
-
-    menu_handler.reApply(server)
-    server.applyChanges()
 
 
 if __name__ == "__main__":
