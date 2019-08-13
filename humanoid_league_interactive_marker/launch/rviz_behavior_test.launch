@@ -18,4 +18,6 @@
 
     <node name="ball_marker" pkg="humanoid_league_interactive_marker" type="rviz_behavior_test.py"/>
     <node name="motor_goals_viz_helper" pkg="bitbots_bringup" type="motor_goals_viz_helper.py"/>
+    <!-- TODO: replace this with the launch file when one exists -->
+    <node name="dynamic_kick" pkg="bitbots_dynamic_kick" type="KickNode" output="screen" />
 </launch>
