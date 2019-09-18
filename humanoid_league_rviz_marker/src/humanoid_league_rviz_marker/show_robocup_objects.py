@@ -87,7 +87,7 @@ class ShowRobocupObjects:
         self.marker_obstacle.type = Marker.CUBE
 
         # todo also display data from world model
-        rospy.Subscriber("/ball_relative", BallRelative, self.ball_cb, queue_size=10)
+        rospy.Subscriber("/balls_relative", BallRelative, self.ball_cb, queue_size=10)
         rospy.Subscriber("/goal_relative", GoalRelative, self.goal_cb, queue_size=10)
         rospy.Subscriber("/obstacles_relative", ObstaclesRelative, self.obstacle_cb, queue_size=10)
 

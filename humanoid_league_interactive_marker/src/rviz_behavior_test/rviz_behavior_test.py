@@ -104,7 +104,7 @@ class BallMarker(RobocupInteractiveMarker):
     def __init__(self, server):
         self.marker_name = "ball"
         self.interaction_mode = InteractiveMarkerControl.MOVE_PLANE
-        self.publisher = rospy.Publisher("ball_relative", BallRelative, queue_size=1)
+        self.publisher = rospy.Publisher("balls_relative", BallRelative, queue_size=1)
         super(BallMarker, self).__init__(server)
 
     def make_individual_markers(self, msg):
