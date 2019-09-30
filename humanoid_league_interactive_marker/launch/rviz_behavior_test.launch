@@ -1,12 +1,14 @@
 <launch>
+    <param name="visualization_active" value="true" />
     <include file="$(find bitbots_bringup)/launch/load_robot_description.launch">
         <arg name="wolfgang" value="true"/>
     </include>
 
     <include file="$(find bitbots_move_base)/launch/pathfinding_move_base.launch" />
-    <include file="$(find bitbots_quintic_walk)/launch/quintic_walk.launch">
-        <arg name="sim" value="true"/>
-    </include>
+
+    <rosparam file="$(find bitbots_quintic_walk)/config/walking_wolfgang_viz.yaml" command="load"/>
+    <node name="walking" pkg="bitbots_quintic_walk" type="WalkNode" respawn="true" output="screen"/>
+
     <include file="$(find bitbots_animation_server)/launch/animation.launch" />
     <include file="$(find bitbots_hcm)/launch/hcm.launch">
         <arg name="sim" value="true"/>
