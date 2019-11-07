@@ -172,7 +172,7 @@ class BallMarker(RobocupInteractiveMarker):
                         ball_relative.ball_relative = ball_in_footprint_frame.point
                         ball_relative.confidence = 1.0
                         self.relative_publisher.publish(ball_relative)
-            except Exception as e:
+            except:
                 rospy.logwarn_throttle(10, "Necessary transforms for relative ball are not available yet.")
 
 
@@ -253,7 +253,8 @@ class GoalMarker(RobocupInteractiveMarker):
                 goal_left_point_stamped.header.stamp = goal_relative.header.stamp
                 goal_left_point_stamped.header.frame_id = "map"
                 goal_left_point_stamped.point = left_post
-                left_post_in_camera_optical_frame = tf_buffer.transform(goal_left_point_stamped, self.cam_info["frame_id"],
+                left_post_in_camera_optical_frame = tf_buffer.transform(goal_left_point_stamped,
+                                                                        self.cam_info["frame_id"],
                                                                         timeout=rospy.Duration(0.5))
 
                 lpost_visible = False
@@ -267,14 +268,17 @@ class GoalMarker(RobocupInteractiveMarker):
                     p_pixel = p_pixel * (1 / p_pixel[2])
 
                     if 0 < p_pixel[0] <= self.cam_info["width"] and 0 < p_pixel[1] <= self.cam_info["height"]:
-                        goal_relative.left_post = tf_buffer.transform(left_post_in_camera_optical_frame, "base_footprint",timeout=rospy.Duration(0.5)).point
+                        goal_relative.left_post = tf_buffer.transform(left_post_in_camera_optical_frame,
+                                                                      "base_footprint",
+                                                                      timeout=rospy.Duration(0.5)).point
                         lpost_visible = True
 
                 goal_right_point_stamped = PointStamped()
                 goal_right_point_stamped.header.stamp = goal_relative.header.stamp
                 goal_right_point_stamped.header.frame_id = "map"
                 goal_right_point_stamped.point = right_post
-                right_post_in_camera_optical_frame = tf_buffer.transform(goal_right_point_stamped, self.cam_info["frame_id"],
+                right_post_in_camera_optical_frame = tf_buffer.transform(goal_right_point_stamped,
+                                                                         self.cam_info["frame_id"],
                                                                          timeout=rospy.Duration(0.5))
                 if right_post_in_camera_optical_frame.point.z >= 0:
                     p = [right_post_in_camera_optical_frame.point.x, right_post_in_camera_optical_frame.point.y,
@@ -284,8 +288,9 @@ class GoalMarker(RobocupInteractiveMarker):
                     p_pixel = p_pixel * (1 / p_pixel[2])
 
                     if 0 < p_pixel[0] <= self.cam_info["width"] and 0 < p_pixel[1] <= self.cam_info["height"]:
-                        goal_relative.right_post = tf_buffer.transform(right_post_in_camera_optical_frame, "base_footprint",
-                                                              timeout=rospy.Duration(0.5)).point
+                        goal_relative.right_post = tf_buffer.transform(right_post_in_camera_optical_frame,
+                                                                       "base_footprint",
+                                                                       timeout=rospy.Duration(0.5)).point
                         rpost_visible = True
 
                 if rpost_visible or lpost_visible:
@@ -295,7 +300,7 @@ class GoalMarker(RobocupInteractiveMarker):
                         goal_relative.right_post = goal_relative.left_post
                     goal_relative.confidence = 1
                     self.relative_publisher.publish(goal_relative)
-            except Exception as e:
+            except:
                 rospy.logwarn_throttle(10, "Necessary transforms for relative goal are not available yet.")
 
 
