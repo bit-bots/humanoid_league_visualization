@@ -37,7 +37,7 @@ import math
 from interactive_markers.interactive_marker_server import InteractiveMarkerServer
 from interactive_markers.menu_handler import MenuHandler
 from visualization_msgs.msg import InteractiveMarker, InteractiveMarkerControl, Marker
-from humanoid_league_msgs.msg import BallRelative, GoalRelative
+from humanoid_league_msgs.msg import BallRelative, GoalRelative, GoalPartsRelative, GoalPostRelative
 from geometry_msgs.msg import Pose, Point, Quaternion, Vector3
 from tf2_geometry_msgs import PointStamped
 from tf.transformations import euler_from_quaternion
@@ -183,6 +183,7 @@ class GoalMarker(RobocupInteractiveMarker):
         self.interaction_mode = InteractiveMarkerControl.MOVE_ROTATE
         self.absolute_publisher = rospy.Publisher("goal_absolute", GoalRelative, queue_size=1)
         self.relative_publisher = rospy.Publisher("goal_relative", GoalRelative, queue_size=1)
+        self.relative_parts_publisher = rospy.Publisher("goal_parts_relative", GoalPartsRelative, queue_size=1)
         super(GoalMarker, self).__init__(server)
 
     def make_individual_markers(self, msg):
@@ -293,6 +294,22 @@ class GoalMarker(RobocupInteractiveMarker):
                                                                        timeout=rospy.Duration(0.5)).point
                         rpost_visible = True
 
+                # publish goal parts msg
+                goal_parts_msg = GoalPartsRelative()
+                post_arr = []
+                if lpost_visible:
+                    left_post_msg = GoalPostRelative()
+                    left_post_msg.foot_point = goal_relative.left_post
+                    post_arr.append(left_post_msg)
+                if rpost_visible:
+                    right_post_msg = GoalPostRelative()
+                    right_post_msg.foot_point = goal_relative.right_post
+                    post_arr.append(right_post_msg)
+                if lpost_visible or rpost_visible:
+                    goal_parts_msg.posts = post_arr
+                    self.relative_parts_publisher.publish(goal_parts_msg)
+
+                # publish goal realtive msg
                 if rpost_visible or lpost_visible:
                     if not lpost_visible:
                         goal_relative.left_post = goal_relative.right_post
