@@ -296,6 +296,7 @@ class GoalMarker(RobocupInteractiveMarker):
 
                 # publish goal parts msg
                 goal_parts_msg = GoalPartsRelative()
+                goal_parts_msg.header = goal_relative.header
                 post_arr = []
                 if lpost_visible:
                     left_post_msg = GoalPostRelative()
