@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package format="2">
   <name>humanoid_league_interactive_marker</name>
-  <version>0.0.1</version>
+  <version>0.0.2</version>
   <description>The humanoid_league_interactive_marker package</description>
 
   <maintainer email="5guelden@informatik.uni-hamburg.de">Jasper Güldenstein</maintainer>
