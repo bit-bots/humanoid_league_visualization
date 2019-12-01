@@ -3,7 +3,7 @@
 import rospy
 import time
 
-from geometry_msgs.msg import Pose, Vector3
+from geometry_msgs.msg import Pose, Vector3, Quaternion
 from std_msgs.msg import ColorRGBA
 from visualization_msgs.msg import MarkerArray, Marker
 from humanoid_league_msgs.msg import BallRelative, GoalRelative, ObstaclesRelative, GoalPartsRelative, GoalPostRelative
@@ -138,6 +138,12 @@ class ShowRobocupObjects:
             pose = Pose()
             pose.position = post.foot_point
             post_marker.pose = pose
+            post_marker.pose.position.z = self.post_height /2
+            post_marker.pose.orientation = Quaternion()
+            post_marker.pose.orientation.x = 0
+            post_marker.pose.orientation.y = 0
+            post_marker.pose.orientation.z = 0
+            post_marker.pose.orientation.w = 1
             post_marker.type = Marker.CYLINDER
             post_marker.action = Marker.MODIFY
             post_marker.id = i
