@@ -148,6 +148,8 @@ class ShowRobocupObjects:
             color.a = 1.0
             post_marker.color = color
             post_marker.lifetime = rospy.Duration(nsecs=self.goal_lifetime)
+            scale = Vector3(self.post_diameter, self.post_diameter, self.post_height)
+            post_marker.scale = scale
             post_marker.header = msg.header
 
             arr.append(post_marker)
