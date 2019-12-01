@@ -3,10 +3,10 @@
 import rospy
 import time
 
-from geometry_msgs.msg import Pose, Vector3
+from geometry_msgs.msg import Pose, Vector3, Quaternion
 from std_msgs.msg import ColorRGBA
 from visualization_msgs.msg import MarkerArray, Marker
-from humanoid_league_msgs.msg import BallRelative, GoalRelative, ObstaclesRelative
+from humanoid_league_msgs.msg import BallRelative, GoalRelative, ObstaclesRelative, GoalPartsRelative, GoalPostRelative
 
 
 class ShowRobocupObjects:
@@ -18,6 +18,7 @@ class ShowRobocupObjects:
         # todo make dyn reconf able
         # todo add line markers
         self.marker_publisher = rospy.Publisher("/robocup_markers", Marker, queue_size=10)
+        self.marker_array_publisher = rospy.Publisher("/robocup_marker_arrays", MarkerArray, queue_size=10)
 
         # object properties
         self.ball_diameter = 0.13
@@ -78,6 +79,8 @@ class ShowRobocupObjects:
         self.post2_color.a = 1.0
         self.marker_goal_rel2.color = self.post2_color
         self.marker_goal_rel2.lifetime = rospy.Duration(nsecs=self.goal_lifetime)
+        # goal parts
+        self.goal_parts_marker = MarkerArray()
         # obstacle
         self.marker_obstacle = Marker()
         self.marker_obstacle.lifetime = rospy.Duration(nsecs=self.obstacle_lifetime)
@@ -89,6 +92,7 @@ class ShowRobocupObjects:
         # todo also display data from world model
         rospy.Subscriber("/ball_relative", BallRelative, self.ball_cb, queue_size=10)
         rospy.Subscriber("/goal_relative", GoalRelative, self.goal_cb, queue_size=10)
+        rospy.Subscriber("/goal_parts_relative", GoalPartsRelative, self.goal_parts_cb, queue_size=10)
         rospy.Subscriber("/obstacles_relative", ObstaclesRelative, self.obstacle_cb, queue_size=10)
 
         # we do everything in the callbacks
@@ -126,6 +130,40 @@ class ShowRobocupObjects:
             self.marker_goal_rel2.color = self.post2_color
             self.marker_publisher.publish(self.marker_goal_rel2)
 
+    def goal_parts_cb(self, msg: GoalPartsRelative):
+        arr = []
+        i = 0
+        for post in msg.posts:
+            post_marker = Marker()
+            pose = Pose()
+            pose.position = post.foot_point
+            post_marker.pose = pose
+            post_marker.pose.position.z = self.post_height /2
+            post_marker.pose.orientation = Quaternion()
+            post_marker.pose.orientation.x = 0
+            post_marker.pose.orientation.y = 0
+            post_marker.pose.orientation.z = 0
+            post_marker.pose.orientation.w = 1
+            post_marker.type = Marker.CYLINDER
+            post_marker.action = Marker.MODIFY
+            post_marker.id = i
+            post_marker.ns = "rel_goal_parts"
+            color = ColorRGBA()
+            color.r = 1.0
+            color.g = 1.0
+            color.b = 1.0
+            color.a = 1.0
+            post_marker.color = color
+            post_marker.lifetime = rospy.Duration(nsecs=self.goal_lifetime)
+            scale = Vector3(self.post_diameter, self.post_diameter, self.post_height)
+            post_marker.scale = scale
+            post_marker.header = msg.header
+
+            arr.append(post_marker)
+            i += 1
+
+        self.goal_parts_marker.markers = arr
+        self.marker_array_publisher.publish(self.goal_parts_marker)
 
     def obstacle_cb(self, msg: ObstaclesRelative):
         i = 0
