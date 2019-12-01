@@ -18,6 +18,7 @@ class ShowRobocupObjects:
         # todo make dyn reconf able
         # todo add line markers
         self.marker_publisher = rospy.Publisher("/robocup_markers", Marker, queue_size=10)
+        self.marker_array_publisher = rospy.Publisher("/robocup_marker_arrays", MarkerArray, queue_size=10)
 
         # object properties
         self.ball_diameter = 0.13
@@ -156,7 +157,7 @@ class ShowRobocupObjects:
             i += 1
 
         self.goal_parts_marker.markers = arr
-        self.marker_publisher.publish(self.goal_parts_marker)
+        self.marker_array_publisher.publish(self.goal_parts_marker)
 
     def obstacle_cb(self, msg: ObstaclesRelative):
         i = 0
