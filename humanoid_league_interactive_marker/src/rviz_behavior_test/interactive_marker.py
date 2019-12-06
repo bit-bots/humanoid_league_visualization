@@ -178,8 +178,12 @@ class BallMarker(RobocupInteractiveMarker):
                         ball_relative.ball_relative = ball_in_footprint_frame.point
                         ball_relative.confidence = 1.0
                         self.relative_publisher.publish(ball_relative)
-            except:
-                rospy.logwarn_throttle(10, "Necessary transforms for relative ball are not available yet.")
+            except tf2_ros.LookupException as ex:
+                rospy.logwarn_throttle(10.0, rospy.get_name() + ": " + str(ex))
+                return None
+            except tf2_ros.ExtrapolationException as ex:
+                rospy.logwarn_throttle(10.0, rospy.get_name() + ": " + str(ex))
+                return None
 
 
 class GoalMarker(RobocupInteractiveMarker):
@@ -326,8 +330,12 @@ class GoalMarker(RobocupInteractiveMarker):
                         goal_relative.right_post = goal_relative.left_post
                     goal_relative.confidence = 1
                     self.relative_publisher.publish(goal_relative)
-            except:
-                rospy.logwarn_throttle(10, "Necessary transforms for relative goal are not available yet.")
+            except tf2_ros.LookupException as ex:
+                rospy.logwarn_throttle(10.0, rospy.get_name() + ": " + str(ex))
+                return None
+            except tf2_ros.ExtrapolationException as ex:
+                rospy.logwarn_throttle(10.0, rospy.get_name() + ": " + str(ex))
+                return None
 
 
 class ObstacleMarker(RobocupInteractiveMarker):
@@ -428,8 +436,6 @@ class ObstacleMarker(RobocupInteractiveMarker):
                     # make sure that the transformed pixel is inside the resolution and positive.
                     if 0 < p_pixel[0] <= self.cam_info["width"] and 0 < p_pixel[1] <= self.cam_info["height"]:
                         obstacle_relative = ObstacleRelative()
-                        obstacle_relative.header.stamp = obstacle_in_camera_optical_frame.header.stamp
-                        obstacle_relative.header.frame_id = "base_footprint"
                         ball_in_footprint_frame = tf_buffer.transform(obstacle_in_camera_optical_frame,
                                                                       "base_footprint",
                                                                       timeout=rospy.Duration(0.5))
@@ -438,8 +444,12 @@ class ObstacleMarker(RobocupInteractiveMarker):
                         obstacle_relative.playerNumber = self.player_number
                         obstacle_relative.color = self.color
                         return obstacle_relative
-            except:
-                rospy.logwarn_throttle(10, "Necessary transforms for relative ball are not available yet.")
+            except tf2_ros.LookupException as ex:
+                rospy.logwarn_throttle(10.0, rospy.get_name() + ": " + str(ex))
+                return None
+            except tf2_ros.ExtrapolationException as ex:
+                rospy.logwarn_throttle(10.0, rospy.get_name() + ": " + str(ex))
+                return None
 
         return None
 
@@ -469,7 +479,6 @@ class ObstacleMarkerArray:
             absolut_obstacles.append(obstacle_relative_msg)
 
             rel_msg = obstacle.get_relative_msg()
-            rospy.logwarn(rel_msg)
             if rel_msg:
                 relative_obstacles.append(obstacle_relative_msg)
 
