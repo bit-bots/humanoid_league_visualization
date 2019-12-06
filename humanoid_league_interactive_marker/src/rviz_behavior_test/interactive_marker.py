@@ -37,7 +37,8 @@ import math
 from interactive_markers.interactive_marker_server import InteractiveMarkerServer
 from interactive_markers.menu_handler import MenuHandler
 from visualization_msgs.msg import InteractiveMarker, InteractiveMarkerControl, Marker
-from humanoid_league_msgs.msg import BallRelative, GoalRelative, GoalPartsRelative, GoalPostRelative
+from humanoid_league_msgs.msg import BallRelative, GoalRelative, GoalPartsRelative, GoalPostRelative, ObstaclesRelative, \
+    ObstacleRelative
 from geometry_msgs.msg import Pose, Point, Quaternion, Vector3
 from tf2_geometry_msgs import PointStamped
 from tf.transformations import euler_from_quaternion
@@ -48,6 +49,9 @@ BALL_DIAMETER = 0.13
 GOAL_WIDTH = 1.5
 GOAL_HEIGHT = 1.1
 POST_DIAMETER = 0.1
+OBSTACLE_NUMBER = 4
+OBSTACLE_HEIGT = 0.8
+OBSTACLE_DIAMETER = 0.2
 
 rospy.init_node("humanoid_league_interactive_marker")
 tf_buffer = tf2_ros.Buffer(rospy.Duration(30))
@@ -59,6 +63,7 @@ class RobocupInteractiveMarker(object):
         self.server = server
         self.pose = Pose()
         self.publish = True
+        self.int_marker = None
         self.make_marker()
         self.menu_handler = MenuHandler()
         item = self.menu_handler.insert("publish", callback=self.menu_callback)
@@ -82,12 +87,12 @@ class RobocupInteractiveMarker(object):
         self.server.applyChanges()
 
     def make_marker(self):
-        int_marker = InteractiveMarker()
-        int_marker.header.frame_id = "map"
-        int_marker.pose = self.pose
-        int_marker.scale = 1
+        self.int_marker = InteractiveMarker()
+        self.int_marker.header.frame_id = "map"
+        self.int_marker.pose = self.pose
+        self.int_marker.scale = 1
 
-        int_marker.name = self.marker_name
+        self.int_marker.name = self.marker_name
 
         control = InteractiveMarkerControl()
         control.orientation.w = math.sqrt(2) / 2
@@ -95,17 +100,17 @@ class RobocupInteractiveMarker(object):
         control.orientation.y = math.sqrt(2) / 2
         control.orientation.z = 0
         control.interaction_mode = self.interaction_mode
-        int_marker.controls.append(copy.deepcopy(control))
+        self.int_marker.controls.append(copy.deepcopy(control))
 
         # make a box which also moves in the plane
-        markers = self.make_individual_markers(int_marker)
+        markers = self.make_individual_markers(self.int_marker)
         for marker in markers:
             control.markers.append(marker)
         control.always_visible = True
-        int_marker.controls.append(control)
+        self.int_marker.controls.append(control)
 
         # we want to use our special callback function
-        self.server.insert(int_marker, self.feedback)
+        self.server.insert(self.int_marker, self.feedback)
 
 
 class BallMarker(RobocupInteractiveMarker):
@@ -116,6 +121,7 @@ class BallMarker(RobocupInteractiveMarker):
         self.absolute_publisher = rospy.Publisher("ball_absolute", BallRelative, queue_size=1)
         self.relative_publisher = rospy.Publisher("ball_relative", BallRelative, queue_size=1)
         super(BallMarker, self).__init__(server)
+        self.pose.position.x = 1.0
 
     def make_individual_markers(self, msg):
         marker = Marker()
@@ -172,8 +178,12 @@ class BallMarker(RobocupInteractiveMarker):
                         ball_relative.ball_relative = ball_in_footprint_frame.point
                         ball_relative.confidence = 1.0
                         self.relative_publisher.publish(ball_relative)
-            except:
-                rospy.logwarn_throttle(10, "Necessary transforms for relative ball are not available yet.")
+            except tf2_ros.LookupException as ex:
+                rospy.logwarn_throttle(10.0, rospy.get_name() + ": " + str(ex))
+                return None
+            except tf2_ros.ExtrapolationException as ex:
+                rospy.logwarn_throttle(10.0, rospy.get_name() + ": " + str(ex))
+                return None
 
 
 class GoalMarker(RobocupInteractiveMarker):
@@ -185,6 +195,8 @@ class GoalMarker(RobocupInteractiveMarker):
         self.relative_publisher = rospy.Publisher("goal_relative", GoalRelative, queue_size=1)
         self.relative_parts_publisher = rospy.Publisher("goal_parts_relative", GoalPartsRelative, queue_size=1)
         super(GoalMarker, self).__init__(server)
+        self.menu_handler = MenuHandler()
+        self.pose.position.x = 3.0
 
     def make_individual_markers(self, msg):
         lpost = Marker()
@@ -318,8 +330,163 @@ class GoalMarker(RobocupInteractiveMarker):
                         goal_relative.right_post = goal_relative.left_post
                     goal_relative.confidence = 1
                     self.relative_publisher.publish(goal_relative)
-            except:
-                rospy.logwarn_throttle(10, "Necessary transforms for relative goal are not available yet.")
+            except tf2_ros.LookupException as ex:
+                rospy.logwarn_throttle(10.0, rospy.get_name() + ": " + str(ex))
+                return None
+            except tf2_ros.ExtrapolationException as ex:
+                rospy.logwarn_throttle(10.0, rospy.get_name() + ": " + str(ex))
+                return None
+
+
+class ObstacleMarker(RobocupInteractiveMarker):
+    def __init__(self, server, cam_info, name):
+        self.cam_info = cam_info
+        self.marker_name = name
+        self.color = 0  # unknown
+        self.player_number = 0
+        self.confidence = 1.0
+        self.interaction_mode = InteractiveMarkerControl.MOVE_PLANE
+        super(ObstacleMarker, self).__init__(server)
+        sub_menu_handle = self.menu_handler.insert("Color")
+        h_mode_last = self.menu_handler.insert("red", parent=sub_menu_handle, callback=self.colorCb)
+        h_mode_last = self.menu_handler.insert("blue", parent=sub_menu_handle, callback=self.colorCb)
+        h_mode_last = self.menu_handler.insert("unknown", parent=sub_menu_handle, callback=self.colorCb)
+        self.menu_handler.setCheckState(h_mode_last, MenuHandler.CHECKED)
+        self.menu_handler.apply(self.server, self.marker_name)
+        self.pose.position.x = 2.0
+
+    def colorCb(self, feedback):
+        item = feedback.menu_entry_id
+        if self.menu_handler.getCheckState(item) == MenuHandler.CHECKED:
+            # unchecking something should lead to unknown color
+            self.color = 0
+            self.menu_handler.setCheckState(item, MenuHandler.UNCHECKED)
+            self.menu_handler.setCheckState(5, MenuHandler.CHECKED)
+            self.int_marker.controls[1].markers[0].color.r = 0.0
+            self.int_marker.controls[1].markers[0].color.g = 0.0
+            self.int_marker.controls[1].markers[0].color.b = 0.0
+        else:
+            if item == 3:
+                self.color = 2
+                self.menu_handler.setCheckState(4, MenuHandler.UNCHECKED)
+                self.menu_handler.setCheckState(5, MenuHandler.UNCHECKED)
+                self.int_marker.controls[1].markers[0].color.r = 1.0
+                self.int_marker.controls[1].markers[0].color.g = 0.0
+                self.int_marker.controls[1].markers[0].color.b = 0.0
+            elif item == 4:
+                self.color = 3
+                self.menu_handler.setCheckState(3, MenuHandler.UNCHECKED)
+                self.menu_handler.setCheckState(5, MenuHandler.UNCHECKED)
+                self.int_marker.controls[1].markers[0].color.r = 0.0
+                self.int_marker.controls[1].markers[0].color.g = 0.0
+                self.int_marker.controls[1].markers[0].color.b = 1.0
+            elif item == 5:
+                self.color = 0
+                self.menu_handler.setCheckState(3, MenuHandler.UNCHECKED)
+                self.menu_handler.setCheckState(4, MenuHandler.UNCHECKED)
+                self.int_marker.controls[1].markers[0].color.r = 0.0
+                self.int_marker.controls[1].markers[0].color.g = 0.0
+                self.int_marker.controls[1].markers[0].color.b = 0.0
+            self.menu_handler.setCheckState(item, MenuHandler.CHECKED)
+
+        self.menu_handler.reApply(self.server)
+        self.server.applyChanges()
+
+    def make_individual_markers(self, msg):
+        marker = Marker()
+
+        marker.type = Marker.CYLINDER
+        marker.scale = Vector3(POST_DIAMETER, POST_DIAMETER, OBSTACLE_HEIGT)
+        marker.color.r = 0.0
+        marker.color.g = 0.0
+        marker.color.b = 0.0
+        marker.color.a = 1.0
+        marker.pose.position = Point(0, 0, OBSTACLE_HEIGT / 2)
+
+        return (marker,)
+
+    def get_absolute_message(self):
+        msg = ObstacleRelative()
+        msg.position = self.pose.position
+        msg.height = OBSTACLE_HEIGT
+        msg.width = OBSTACLE_DIAMETER
+        msg.color = self.color
+        msg.confidence = self.confidence
+        msg.playerNumber = self.player_number
+        return msg
+
+    def get_relative_msg(self):
+        # check if obstacle is also visible for the robot and only then return
+        if self.cam_info:
+            try:
+                obstacle_point_stamped = PointStamped()
+                obstacle_point_stamped.header.stamp = rospy.Time.now()
+                obstacle_point_stamped.header.frame_id = "map"
+                obstacle_point_stamped.point = self.pose.position
+                obstacle_in_camera_optical_frame = tf_buffer.transform(obstacle_point_stamped,
+                                                                       self.cam_info["frame_id"],
+                                                                       timeout=rospy.Duration(0.5))
+                if obstacle_in_camera_optical_frame.point.z >= 0:
+                    p = [obstacle_in_camera_optical_frame.point.x, obstacle_in_camera_optical_frame.point.y,
+                         obstacle_in_camera_optical_frame.point.z]
+                    k = np.reshape(self.cam_info["K"], (3, 3))
+                    p_pixel = np.matmul(k, p)
+                    p_pixel = p_pixel * (1 / p_pixel[2])
+
+                    # make sure that the transformed pixel is inside the resolution and positive.
+                    if 0 < p_pixel[0] <= self.cam_info["width"] and 0 < p_pixel[1] <= self.cam_info["height"]:
+                        obstacle_relative = ObstacleRelative()
+                        ball_in_footprint_frame = tf_buffer.transform(obstacle_in_camera_optical_frame,
+                                                                      "base_footprint",
+                                                                      timeout=rospy.Duration(0.5))
+                        obstacle_relative.position = ball_in_footprint_frame.point
+                        obstacle_relative.confidence = self.confidence
+                        obstacle_relative.playerNumber = self.player_number
+                        obstacle_relative.color = self.color
+                        return obstacle_relative
+            except tf2_ros.LookupException as ex:
+                rospy.logwarn_throttle(10.0, rospy.get_name() + ": " + str(ex))
+                return None
+            except tf2_ros.ExtrapolationException as ex:
+                rospy.logwarn_throttle(10.0, rospy.get_name() + ": " + str(ex))
+                return None
+
+        return None
+
+
+class ObstacleMarkerArray:
+    def __init__(self, server, cam_info):
+        self.cam_info = cam_info
+        self.absolute_publisher = rospy.Publisher("obstacles_absolute", ObstaclesRelative, queue_size=1)
+        self.relative_publisher = rospy.Publisher("obstacles_relative", ObstaclesRelative, queue_size=1)
+        self.obstacles = []
+        for i in range(0, OBSTACLE_NUMBER):
+            self.obstacles.append(ObstacleMarker(server, cam_info, "obstacle_" + str(i)))
+
+    def publish_marker(self, e):
+        absolut_msg = ObstaclesRelative()
+        absolut_msg.header.stamp = rospy.Time.now()
+        absolut_msg.header.frame_id = "map"
+        absolut_obstacles = []
+        relative_msg = ObstaclesRelative()
+        relative_msg.header.stamp = rospy.Time.now()
+        relative_msg.header.frame_id = "base_link"
+        relative_obstacles = []
+
+        for obstacle in self.obstacles:
+            # always publish on absolute
+            obstacle_relative_msg = obstacle.get_absolute_message()
+            absolut_obstacles.append(obstacle_relative_msg)
+
+            rel_msg = obstacle.get_relative_msg()
+            if rel_msg:
+                relative_obstacles.append(obstacle_relative_msg)
+
+        absolut_msg.obstacles = absolut_obstacles
+        relative_msg.obstacles = relative_obstacles
+
+        self.absolute_publisher.publish(absolut_msg)
+        self.relative_publisher.publish(relative_msg)
 
 
 if __name__ == "__main__":
@@ -332,12 +499,14 @@ if __name__ == "__main__":
     server = InteractiveMarkerServer("basic_controls")
     ball = BallMarker(server, cam_info)
     goal = GoalMarker(server, cam_info)
+    obstacles = ObstacleMarkerArray(server, cam_info)
 
     server.applyChanges()
 
     # create a timer to update the published ball transform
     rospy.Timer(rospy.Duration(0.1), ball.publish_marker)
     rospy.Timer(rospy.Duration(0.1), goal.publish_marker)
+    rospy.Timer(rospy.Duration(0.1), obstacles.publish_marker)
 
     # run and block until finished
     rospy.spin()
