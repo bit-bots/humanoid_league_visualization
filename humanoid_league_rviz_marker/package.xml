@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package format="2">
   <name>humanoid_league_rviz_marker</name>
-  <version>0.1.0</version>
+  <version>0.1.1</version>
   <description>Shows RoboCup Soccer specific objects in RViz. More information in the README.</description>
 
   <maintainer email="bestmann@informatik.uni-hamburg.de">Marc Bestmann</maintainer>
