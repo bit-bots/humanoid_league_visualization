@@ -54,6 +54,10 @@ class ShowRobocupObjects:
         self.marker_goal_rel1.type = Marker.CYLINDER
         self.marker_goal_rel1.action = Marker.MODIFY
         self.goal_post1_pose = Pose()
+        self.goal_post1_pose.orientation.x = 0
+        self.goal_post1_pose.orientation.y = 0
+        self.goal_post1_pose.orientation.z = 0
+        self.goal_post1_pose.orientation.w = 1
         scale = Vector3(self.post_diameter, self.post_diameter, self.post_height)
         self.marker_goal_rel1.scale = scale
         self.post1_color = ColorRGBA()
@@ -70,6 +74,10 @@ class ShowRobocupObjects:
         self.marker_goal_rel2.type = Marker.CYLINDER
         self.marker_goal_rel2.action = Marker.MODIFY
         self.goal_post2_pose = Pose()
+        self.goal_post2_pose.orientation.x = 0
+        self.goal_post2_pose.orientation.y = 0
+        self.goal_post2_pose.orientation.z = 0
+        self.goal_post2_pose.orientation.w = 1
         scale = Vector3(self.post_diameter, self.post_diameter, self.post_height)
         self.marker_goal_rel2.scale = scale
         self.post2_color = ColorRGBA()
@@ -87,6 +95,10 @@ class ShowRobocupObjects:
         self.marker_obstacle.ns = "rel_obstacle"
         self.obstacle_color = ColorRGBA()
         self.obstacle_pose = Pose()
+        self.obstacle_pose.orientation.x = 0
+        self.obstacle_pose.orientation.y = 0
+        self.obstacle_pose.orientation.z = 0
+        self.obstacle_pose.orientation.w = 1
         self.marker_obstacle.type = Marker.CUBE
 
         # todo also display data from world model
