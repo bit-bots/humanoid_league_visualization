@@ -475,12 +475,11 @@ class ObstacleMarkerArray:
 
         for obstacle in self.obstacles:
             # always publish on absolute
-            obstacle_relative_msg = obstacle.get_absolute_message()
-            absolut_obstacles.append(obstacle_relative_msg)
+            absolut_obstacles.append(obstacle.get_absolute_message())
 
             rel_msg = obstacle.get_relative_msg()
             if rel_msg:
-                relative_obstacles.append(obstacle_relative_msg)
+                relative_obstacles.append(rel_msg)
 
         absolut_msg.obstacles = absolut_obstacles
         relative_msg.obstacles = relative_obstacles
