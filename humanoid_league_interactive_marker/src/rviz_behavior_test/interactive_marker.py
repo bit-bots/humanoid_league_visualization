@@ -470,7 +470,7 @@ class ObstacleMarkerArray:
         absolut_obstacles = []
         relative_msg = ObstaclesRelative()
         relative_msg.header.stamp = rospy.Time.now()
-        relative_msg.header.frame_id = "base_link"
+        relative_msg.header.frame_id = "base_footprint"
         relative_obstacles = []
 
         for obstacle in self.obstacles:
