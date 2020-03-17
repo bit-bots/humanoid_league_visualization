@@ -134,7 +134,7 @@ class BallMarker(RobocupInteractiveMarker):
         marker.color.r = 1.0
         marker.color.g = 0.0
         marker.color.b = 0.0
-        marker.color.a = 1.0
+        marker.color.a = 0.4
 
         return (marker,)
 
@@ -205,7 +205,7 @@ class GoalMarker(RobocupInteractiveMarker):
         lpost.color.r = 1.0
         lpost.color.g = 1.0
         lpost.color.b = 1.0
-        lpost.color.a = 1.0
+        lpost.color.a = 0.4
         lpost.pose.position = Point(0, GOAL_WIDTH / 2, GOAL_HEIGHT / 2)
 
         rpost = Marker()
@@ -214,7 +214,7 @@ class GoalMarker(RobocupInteractiveMarker):
         rpost.color.r = 1.0
         rpost.color.g = 1.0
         rpost.color.b = 1.0
-        rpost.color.a = 1.0
+        rpost.color.a = 0.4
         rpost.pose.position = Point(0, - GOAL_WIDTH / 2, GOAL_HEIGHT / 2)
 
         bar = Marker()
@@ -223,7 +223,7 @@ class GoalMarker(RobocupInteractiveMarker):
         bar.color.r = 1.0
         bar.color.g = 1.0
         bar.color.b = 1.0
-        bar.color.a = 1.0
+        bar.color.a = 0.4
         bar.pose.position = Point(0, 0, GOAL_HEIGHT)
         bar.pose.orientation = Quaternion(math.sqrt(2) / 2, 0, 0, math.sqrt(2) / 2)
 
@@ -400,7 +400,7 @@ class ObstacleMarker(RobocupInteractiveMarker):
         marker.color.r = 0.0
         marker.color.g = 0.0
         marker.color.b = 0.0
-        marker.color.a = 1.0
+        marker.color.a = 0.4
         marker.pose.position = Point(0, 0, OBSTACLE_HEIGT / 2)
 
         return (marker,)
