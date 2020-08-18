@@ -25,9 +25,7 @@ from python_qt_binding import loadUi
 
 from rqt_gui_py.plugin import Plugin
 
-from humanoid_league_msgs.msg import BallRelative
-from humanoid_league_msgs.msg import GoalRelative
-from humanoid_league_msgs.msg import ObstaclesRelative
+from humanoid_league_msgs.msg import BallRelative, GoalRelative, ObstacleRelativeArray
 
 from tf2_geometry_msgs import PointStamped
 
@@ -98,7 +96,7 @@ class HumanoidLeagueRelativeRqt(Plugin):
         self.radar = QGraphicsPixmapItem(field_image)
         self.radar.setPos(0, 0)
         self._scene.addItem(self.radar)
-        
+
         # legend
         self.legend = QGraphicsTextItem(self.radar)
         html_legend = ('<p style="font-size: 50px;">Legend</p> \
@@ -115,7 +113,7 @@ class HumanoidLeagueRelativeRqt(Plugin):
                             self.Npcolor2String(self.green)))
         self.legend.setHtml(html_legend)
         self.legend.setPos(self.image_width,50)
-        
+
         # ball
         self.ball_pen = QPen(self.ball_outline)
         self.ball_pen.setWidth(self.outline_thickness)
@@ -138,7 +136,7 @@ class HumanoidLeagueRelativeRqt(Plugin):
         self.right_post.setPen(self.post_pen)
         self.right_post.setVisible(False)
         self.right_post.setOpacity(self.opacity)
-        
+
         # goal center
         self.center_pen = QPen(self.goal_outline)
         self.center_pen.setWidth(self.outline_thickness)
@@ -151,7 +149,7 @@ class HumanoidLeagueRelativeRqt(Plugin):
         # Obstacles
         self.obstacle_pen = QPen(self.obstacle_outline)
         self.obstacle_pen.setWidth(self.outline_thickness)
-        
+
         self.obstacles = []
 
         # set the right positions and sizes
@@ -162,7 +160,7 @@ class HumanoidLeagueRelativeRqt(Plugin):
 
         rospy.Subscriber("ball_relative", BallRelative, self.ball_cb, queue_size=100)
         rospy.Subscriber("goal_relative", GoalRelative, self.goal_cb, queue_size=100)
-        rospy.Subscriber("obstacles_relative", ObstaclesRelative, self.obstacle_cb, queue_size=100)
+        rospy.Subscriber("obstacles_relative", ObstacleRelativeArray, self.obstacle_cb, queue_size=100)
 
         self.tf_buffer = tf2_ros.Buffer(cache_time=rospy.Duration(10.0))
         self.tf_listener = tf2_ros.TransformListener(self.tf_buffer)
@@ -223,9 +221,9 @@ class HumanoidLeagueRelativeRqt(Plugin):
         if msg.ball_relative is not None:
             self.set_scaled_position(self.ball, -1 * ball_point.point.x, -1 * ball_point.point.y, self.ball_size,
                                      self.ball_size)
-        
+
         color_tuple = self.confidence2color(msg.confidence)
-        self.ball.setBrush(QBrush(QColor(*color_tuple))) 
+        self.ball.setBrush(QBrush(QColor(*color_tuple)))
         self.ball.setVisible(self.ball_active)
 
     def goal_cb(self, msg):
@@ -248,7 +246,7 @@ class HumanoidLeagueRelativeRqt(Plugin):
         color_tuple = self.confidence2color(msg.confidence)
         obj.setBrush(QBrush(QColor(*color_tuple)))
         obj.setVisible(self.goal_active)
-        
+
     def confidence2color(self, confidence):
         diff = self.green - self.red
         ball_color = self.red + diff * confidence
@@ -267,7 +265,7 @@ class HumanoidLeagueRelativeRqt(Plugin):
             obstacle_point = PointStamped()
             obstacle_point.header.frame_id = msg.header.frame_id
             obstacle_point.header.stamp = msg.header.stamp
-            obstacle_point.point = obstacle_msg.position
+            obstacle_point.point = obstacle_msg.pose.pose.pose.position
 
             try:
                 obstacle_point = self.tf_buffer.transform(obstacle_point, "base_footprint")
@@ -276,7 +274,7 @@ class HumanoidLeagueRelativeRqt(Plugin):
                 return None
 
             self.set_scaled_position(obstacle, -1 * obstacle_point.point.x, -1 * obstacle_point.point.y, self.obsacle_size, self.obsacle_size)
-            color_tuple = self.confidence2color(obstacle_msg.confidence)
-            obstacle.setBrush(QBrush(QColor(*color_tuple))) 
+            color_tuple = self.confidence2color(obstacle_msg.pose.confidence)
+            obstacle.setBrush(QBrush(QColor(*color_tuple)))
             obstacle.setVisible(True)
             self.obstacles.append(obstacle)
