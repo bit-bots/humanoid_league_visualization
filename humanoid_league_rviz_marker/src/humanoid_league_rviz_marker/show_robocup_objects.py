@@ -6,8 +6,8 @@ import time
 from geometry_msgs.msg import Pose, Vector3, Quaternion
 from std_msgs.msg import ColorRGBA
 from visualization_msgs.msg import MarkerArray, Marker
-from humanoid_league_msgs.msg import PoseWithCertaintyStamped, PoseWithCertaintyArray, ObstacleRelativeArray, \
-    ObstacleRelative
+from humanoid_league_msgs.msg import PoseWithCertaintyStamped, PoseWithCertaintyArray, PoseWithCertainty, \
+    ObstacleRelativeArray, ObstacleRelative
 
 
 class ShowRobocupObjects:
@@ -39,7 +39,6 @@ class ShowRobocupObjects:
         self.marker_ball_rel.id = 0
         self.marker_ball_rel.type = Marker.SPHERE
         self.marker_ball_rel.action = Marker.MODIFY
-        self.ball_pose = Pose()
         scale = Vector3(self.ball_diameter, self.ball_diameter, self.ball_diameter)
         self.marker_ball_rel.scale = scale
         self.ball_color = ColorRGBA()
@@ -103,7 +102,7 @@ class ShowRobocupObjects:
         self.marker_obstacle.type = Marker.CUBE
 
         # todo also display data from world model
-        rospy.Subscriber("/ball_relative", PoseWithCertaintyStamped, self.ball_cb, queue_size=10)
+        rospy.Subscriber("/balls_relative", PoseWithCertaintyArray, self.balls_cb, queue_size=10)
         rospy.Subscriber("/goal_relative", PoseWithCertaintyArray, self.goal_cb, queue_size=10)
         rospy.Subscriber("/goal_parts_relative", PoseWithCertaintyArray, self.goal_parts_cb, queue_size=10)
         rospy.Subscriber("/obstacles_relative", ObstacleRelativeArray, self.obstacle_cb, queue_size=10)
@@ -111,16 +110,16 @@ class ShowRobocupObjects:
         # we do everything in the callbacks
         rospy.spin()
 
-    def ball_cb(self, msg: PoseWithCertaintyStamped):
+    def balls_cb(self, msg: PoseWithCertaintyArray):
         self.ball_frame = msg.header.frame_id
         self.marker_ball_rel.header = msg.header
+        balls = msg.poses
 
-        self.ball_pose.position = msg.pose.pose.pose.position
-        self.marker_ball_rel.pose = self.ball_pose
-        self.ball_color.a = msg.pose.confidence
-        self.marker_ball_rel.color = self.ball_color
-
-        self.marker_publisher.publish(self.marker_ball_rel)
+        for ball in balls:
+            self.marker_ball_rel.pose = ball.pose.pose.position
+            self.ball_color.a = ball.confidence
+            self.marker_ball_rel.color = self.ball_color
+            self.marker_publisher.publish(self.marker_ball_rel)
 
     def goal_cb(self, msg: PoseWithCertaintyArray):
         # first post
