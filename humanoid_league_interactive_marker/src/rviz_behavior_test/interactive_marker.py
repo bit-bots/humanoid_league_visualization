@@ -37,8 +37,8 @@ import math
 from interactive_markers.interactive_marker_server import InteractiveMarkerServer
 from interactive_markers.menu_handler import MenuHandler
 from visualization_msgs.msg import InteractiveMarker, InteractiveMarkerControl, Marker
-from humanoid_league_msgs.msg import BallRelative, GoalRelative, GoalPartsRelative, GoalPostRelative, ObstaclesRelative, \
-    ObstacleRelative
+from humanoid_league_msgs.msg import PoseWithCertaintyStamped, PoseWithCertaintyArray, \
+    ObstacleRelative, ObstacleRelativeArray, PoseWithCertainty
 from geometry_msgs.msg import Pose, Point, Quaternion, Vector3
 from tf2_geometry_msgs import PointStamped
 from tf.transformations import euler_from_quaternion
@@ -118,8 +118,8 @@ class BallMarker(RobocupInteractiveMarker):
         self.cam_info = cam_info
         self.marker_name = "ball"
         self.interaction_mode = InteractiveMarkerControl.MOVE_PLANE
-        self.absolute_publisher = rospy.Publisher("ball_absolute", BallRelative, queue_size=1)
-        self.relative_publisher = rospy.Publisher("ball_relative", BallRelative, queue_size=1)
+        self.absolute_publisher = rospy.Publisher("ball_absolute", PoseWithCertaintyStamped, queue_size=1)
+        self.relative_publisher = rospy.Publisher("ball_relative", PoseWithCertaintyStamped, queue_size=1)
         super(BallMarker, self).__init__(server)
         self.pose.position.x = 1.0
 
@@ -140,11 +140,11 @@ class BallMarker(RobocupInteractiveMarker):
 
     def publish_marker(self, e):
         # construct BallRelative message for map frame
-        ball_absolute = BallRelative()
+        ball_absolute = PoseWithCertaintyStamped()
         ball_absolute.header.stamp = rospy.get_rostime()
         ball_absolute.header.frame_id = "map"
-        ball_absolute.confidence = 1.0
-        ball_absolute.ball_relative = self.pose.position
+        ball_absolute.pose.confidence = 1.0
+        ball_absolute.pose.pose.pose = self.pose
 
         # publish the new ball position
         if self.publish:
@@ -157,7 +157,7 @@ class BallMarker(RobocupInteractiveMarker):
                 ball_point_stamped = PointStamped()
                 ball_point_stamped.header.stamp = rospy.Time.now()
                 ball_point_stamped.header.frame_id = "map"
-                ball_point_stamped.point = ball_absolute.ball_relative
+                ball_point_stamped.point = ball_absolute.pose.pose.pose.position
                 ball_in_camera_optical_frame = tf_buffer.transform(ball_point_stamped, self.cam_info["frame_id"],
                                                                    timeout=rospy.Duration(0.5))
                 if ball_in_camera_optical_frame.point.z >= 0:
@@ -169,14 +169,14 @@ class BallMarker(RobocupInteractiveMarker):
 
                     # make sure that the transformed pixel is inside the resolution and positive.
                     if 0 < p_pixel[0] <= self.cam_info["width"] and 0 < p_pixel[1] <= self.cam_info["height"]:
-                        ball_relative = BallRelative()
+                        ball_relative = PoseWithCertaintyStamped()
                         ball_relative.header.stamp = ball_in_camera_optical_frame.header.stamp
                         ball_relative.header.frame_id = "base_footprint"
                         ball_in_footprint_frame = tf_buffer.transform(ball_in_camera_optical_frame, "base_footprint",
                                                                       timeout=rospy.Duration(0.5))
                         ball_relative.header = ball_in_footprint_frame.header
-                        ball_relative.ball_relative = ball_in_footprint_frame.point
-                        ball_relative.confidence = 1.0
+                        ball_relative.pose.pose.pose.position = ball_in_footprint_frame.point
+                        ball_relative.pose.confidence = 1.0
                         self.relative_publisher.publish(ball_relative)
             except tf2_ros.LookupException as ex:
                 rospy.logwarn_throttle(10.0, rospy.get_name() + ": " + str(ex))
@@ -191,9 +191,9 @@ class GoalMarker(RobocupInteractiveMarker):
         self.cam_info = cam_info
         self.marker_name = "goal"
         self.interaction_mode = InteractiveMarkerControl.MOVE_ROTATE
-        self.absolute_publisher = rospy.Publisher("goal_absolute", GoalRelative, queue_size=1)
-        self.relative_publisher = rospy.Publisher("goal_relative", GoalRelative, queue_size=1)
-        self.relative_parts_publisher = rospy.Publisher("goal_parts_relative", GoalPartsRelative, queue_size=1)
+        self.absolute_publisher = rospy.Publisher("goal_absolute", PoseWithCertaintyArray, queue_size=1)
+        self.relative_publisher = rospy.Publisher("goal_relative", PoseWithCertaintyArray, queue_size=1)
+        self.relative_posts_publisher = rospy.Publisher("goalposts_relative", PoseWithCertaintyArray, queue_size=1)
         super(GoalMarker, self).__init__(server)
         self.menu_handler = MenuHandler()
         self.pose.position.x = 3.0
@@ -231,24 +231,26 @@ class GoalMarker(RobocupInteractiveMarker):
 
     def publish_marker(self, e):
         # construct GoalRelative message
-        goal_absolute = GoalRelative()
+        goal_absolute = PoseWithCertaintyArray()
         goal_absolute.header.stamp = rospy.get_rostime()
         goal_absolute.header.frame_id = "map"
-        goal_absolute.confidence = 1.0
         # calculate the positions of the right and the left post
         orientation = euler_from_quaternion((self.pose.orientation.x, self.pose.orientation.y,
                                              self.pose.orientation.z, self.pose.orientation.w))
         angle = orientation[2]
-        left_post = Point()
-        left_post.x = self.pose.position.x - math.sin(angle) * GOAL_WIDTH / 2
-        left_post.y = self.pose.position.y + math.cos(angle) * GOAL_WIDTH / 2
+        left_post = PoseWithCertainty()
+        left_post.pose.pose.position.x = self.pose.position.x - math.sin(angle) * GOAL_WIDTH / 2
+        left_post.pose.pose.position.y = self.pose.position.y + math.cos(angle) * GOAL_WIDTH / 2
+        left_post.confidence = 1.0
 
-        right_post = Point()
-        right_post.x = self.pose.position.x + math.sin(angle) * GOAL_WIDTH / 2
-        right_post.y = self.pose.position.y - math.cos(angle) * GOAL_WIDTH / 2
+        right_post = PoseWithCertainty()
+        right_post.pose.pose.position.x = self.pose.position.x + math.sin(angle) * GOAL_WIDTH / 2
+        right_post.pose.pose.position.y = self.pose.position.y - math.cos(angle) * GOAL_WIDTH / 2
+        right_post.confidence = 1.0
 
-        goal_absolute.left_post = left_post
-        goal_absolute.right_post = right_post
+
+        goal_absolute.poses.append(left_post)
+        goal_absolute.poses.append(right_post)
 
         # publish the new goal position
         if self.publish:
@@ -258,7 +260,7 @@ class GoalMarker(RobocupInteractiveMarker):
         # only works if camera info is provided
         if self.cam_info:
             try:
-                goal_relative = GoalRelative()
+                goal_relative = PoseWithCertaintyArray()
                 goal_relative.header.stamp = rospy.Time.now()
                 goal_relative.header.frame_id = "base_footprint"
 
@@ -281,9 +283,11 @@ class GoalMarker(RobocupInteractiveMarker):
                     p_pixel = p_pixel * (1 / p_pixel[2])
 
                     if 0 < p_pixel[0] <= self.cam_info["width"] and 0 < p_pixel[1] <= self.cam_info["height"]:
-                        goal_relative.left_post = tf_buffer.transform(left_post_in_camera_optical_frame,
-                                                                      "base_footprint",
-                                                                      timeout=rospy.Duration(0.5)).point
+                        left_post = PoseWithCertainty()
+                        left_post.pose.pose = tf_buffer.transform(left_post_in_camera_optical_frame,
+                                                                  "base_footprint",
+                                                                  timeout=rospy.Duration(0.5))
+                        goal_relative.poses.append(left_post)
                         lpost_visible = True
 
                 goal_right_point_stamped = PointStamped()
@@ -301,35 +305,18 @@ class GoalMarker(RobocupInteractiveMarker):
                     p_pixel = p_pixel * (1 / p_pixel[2])
 
                     if 0 < p_pixel[0] <= self.cam_info["width"] and 0 < p_pixel[1] <= self.cam_info["height"]:
-                        goal_relative.right_post = tf_buffer.transform(right_post_in_camera_optical_frame,
-                                                                       "base_footprint",
-                                                                       timeout=rospy.Duration(0.5)).point
+                        right_post = PoseWithCertainty()
+                        right_post.pose.pose = tf_buffer.transform(right_post_in_camera_optical_frame,
+                                                                   "base_footprint",
+                                                                   timeout=rospy.Duration(0.5))
+                        goal_relative.poses.append(right_post)
                         rpost_visible = True
 
-                # publish goal parts msg
-                goal_parts_msg = GoalPartsRelative()
-                goal_parts_msg.header = goal_relative.header
-                post_arr = []
-                if lpost_visible:
-                    left_post_msg = GoalPostRelative()
-                    left_post_msg.foot_point = goal_relative.left_post
-                    post_arr.append(left_post_msg)
-                if rpost_visible:
-                    right_post_msg = GoalPostRelative()
-                    right_post_msg.foot_point = goal_relative.right_post
-                    post_arr.append(right_post_msg)
-                if lpost_visible or rpost_visible:
-                    goal_parts_msg.posts = post_arr
-                    self.relative_parts_publisher.publish(goal_parts_msg)
-
-                # publish goal realtive msg
+                # publish goal relative msg
                 if rpost_visible or lpost_visible:
-                    if not lpost_visible:
-                        goal_relative.left_post = goal_relative.right_post
-                    elif not rpost_visible:
-                        goal_relative.right_post = goal_relative.left_post
-                    goal_relative.confidence = 1
                     self.relative_publisher.publish(goal_relative)
+                    self.relative_posts_publisher.publish(goal_relative)
+
             except tf2_ros.LookupException as ex:
                 rospy.logwarn_throttle(10.0, rospy.get_name() + ": " + str(ex))
                 return None
@@ -342,7 +329,7 @@ class ObstacleMarker(RobocupInteractiveMarker):
     def __init__(self, server, cam_info, name):
         self.cam_info = cam_info
         self.marker_name = name
-        self.color = 0  # unknown
+        self.type = 0  # unknown
         self.player_number = 0
         self.confidence = 1.0
         self.interaction_mode = InteractiveMarkerControl.MOVE_PLANE
@@ -359,34 +346,34 @@ class ObstacleMarker(RobocupInteractiveMarker):
         item = feedback.menu_entry_id
         if self.menu_handler.getCheckState(item) == MenuHandler.CHECKED:
             # unchecking something should lead to unknown color
-            self.color = 0
+            self.type = 0
             self.menu_handler.setCheckState(item, MenuHandler.UNCHECKED)
             self.menu_handler.setCheckState(5, MenuHandler.CHECKED)
-            self.int_marker.controls[1].markers[0].color.r = 0.0
-            self.int_marker.controls[1].markers[0].color.g = 0.0
-            self.int_marker.controls[1].markers[0].color.b = 0.0
+            self.int_marker.controls[1].markers[0].type.r = 0.0
+            self.int_marker.controls[1].markers[0].type.g = 0.0
+            self.int_marker.controls[1].markers[0].type.b = 0.0
         else:
             if item == 3:
-                self.color = 2
+                self.type = 2
                 self.menu_handler.setCheckState(4, MenuHandler.UNCHECKED)
                 self.menu_handler.setCheckState(5, MenuHandler.UNCHECKED)
-                self.int_marker.controls[1].markers[0].color.r = 1.0
-                self.int_marker.controls[1].markers[0].color.g = 0.0
-                self.int_marker.controls[1].markers[0].color.b = 0.0
+                self.int_marker.controls[1].markers[0].type.r = 1.0
+                self.int_marker.controls[1].markers[0].type.g = 0.0
+                self.int_marker.controls[1].markers[0].type.b = 0.0
             elif item == 4:
-                self.color = 3
+                self.type = 3
                 self.menu_handler.setCheckState(3, MenuHandler.UNCHECKED)
                 self.menu_handler.setCheckState(5, MenuHandler.UNCHECKED)
-                self.int_marker.controls[1].markers[0].color.r = 0.0
-                self.int_marker.controls[1].markers[0].color.g = 0.0
-                self.int_marker.controls[1].markers[0].color.b = 1.0
+                self.int_marker.controls[1].markers[0].type.r = 0.0
+                self.int_marker.controls[1].markers[0].type.g = 0.0
+                self.int_marker.controls[1].markers[0].type.b = 1.0
             elif item == 5:
-                self.color = 0
+                self.type = 0
                 self.menu_handler.setCheckState(3, MenuHandler.UNCHECKED)
                 self.menu_handler.setCheckState(4, MenuHandler.UNCHECKED)
-                self.int_marker.controls[1].markers[0].color.r = 0.0
-                self.int_marker.controls[1].markers[0].color.g = 0.0
-                self.int_marker.controls[1].markers[0].color.b = 0.0
+                self.int_marker.controls[1].markers[0].type.r = 0.0
+                self.int_marker.controls[1].markers[0].type.g = 0.0
+                self.int_marker.controls[1].markers[0].type.b = 0.0
             self.menu_handler.setCheckState(item, MenuHandler.CHECKED)
 
         self.menu_handler.reApply(self.server)
@@ -407,11 +394,11 @@ class ObstacleMarker(RobocupInteractiveMarker):
 
     def get_absolute_message(self):
         msg = ObstacleRelative()
-        msg.position = self.pose.position
+        msg.pose.pose.pose.position = self.pose.position
         msg.height = OBSTACLE_HEIGT
         msg.width = OBSTACLE_DIAMETER
-        msg.color = self.color
-        msg.confidence = self.confidence
+        msg.type = self.type
+        msg.pose.confidence = self.confidence
         msg.playerNumber = self.player_number
         return msg
 
@@ -439,10 +426,10 @@ class ObstacleMarker(RobocupInteractiveMarker):
                         ball_in_footprint_frame = tf_buffer.transform(obstacle_in_camera_optical_frame,
                                                                       "base_footprint",
                                                                       timeout=rospy.Duration(0.5))
-                        obstacle_relative.position = ball_in_footprint_frame.point
-                        obstacle_relative.confidence = self.confidence
+                        obstacle_relative.pose.pose.pose.position = ball_in_footprint_frame.point
+                        obstacle_relative.pose.confidence = self.confidence
                         obstacle_relative.playerNumber = self.player_number
-                        obstacle_relative.color = self.color
+                        obstacle_relative.type = self.type
                         return obstacle_relative
             except tf2_ros.LookupException as ex:
                 rospy.logwarn_throttle(10.0, rospy.get_name() + ": " + str(ex))
@@ -457,18 +444,18 @@ class ObstacleMarker(RobocupInteractiveMarker):
 class ObstacleMarkerArray:
     def __init__(self, server, cam_info):
         self.cam_info = cam_info
-        self.absolute_publisher = rospy.Publisher("obstacles_absolute", ObstaclesRelative, queue_size=1)
-        self.relative_publisher = rospy.Publisher("obstacles_relative", ObstaclesRelative, queue_size=1)
+        self.absolute_publisher = rospy.Publisher("obstacles_absolute", ObstacleRelativeArray, queue_size=1)
+        self.relative_publisher = rospy.Publisher("obstacles_relative", ObstacleRelativeArray, queue_size=1)
         self.obstacles = []
         for i in range(0, OBSTACLE_NUMBER):
             self.obstacles.append(ObstacleMarker(server, cam_info, "obstacle_" + str(i)))
 
     def publish_marker(self, e):
-        absolut_msg = ObstaclesRelative()
+        absolut_msg = ObstacleRelativeArray()
         absolut_msg.header.stamp = rospy.Time.now()
         absolut_msg.header.frame_id = "map"
         absolut_obstacles = []
-        relative_msg = ObstaclesRelative()
+        relative_msg = ObstacleRelativeArray()
         relative_msg.header.stamp = rospy.Time.now()
         relative_msg.header.frame_id = "base_footprint"
         relative_obstacles = []
