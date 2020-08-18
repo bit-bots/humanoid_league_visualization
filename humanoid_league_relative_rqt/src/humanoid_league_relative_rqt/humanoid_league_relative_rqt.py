@@ -25,7 +25,8 @@ from python_qt_binding import loadUi
 
 from rqt_gui_py.plugin import Plugin
 
-from humanoid_league_msgs.msg import BallRelative, GoalRelative, ObstacleRelativeArray
+from humanoid_league_msgs.msg import PoseWithCertainty, PoseWithCertaintyArray, \
+    GoalRelative, ObstacleRelativeArray
 
 from tf2_geometry_msgs import PointStamped
 
@@ -118,11 +119,6 @@ class HumanoidLeagueRelativeRqt(Plugin):
         self.ball_pen = QPen(self.ball_outline)
         self.ball_pen.setWidth(self.outline_thickness)
 
-        self.ball = QGraphicsEllipseItem(0, 0, self.ball_size, self.ball_size, self.radar)
-        self.ball.setPen(self.ball_pen)
-        self.ball.setVisible(False)
-        self.ball.setOpacity(self.opacity)
-
         # goal posts
         self.post_pen = QPen(self.goal_outline)
         self.post_pen.setWidth(self.outline_thickness)
@@ -158,7 +154,7 @@ class HumanoidLeagueRelativeRqt(Plugin):
 
         # self.dyn_reconf = Server(field_rqt_params, self.reconfigure)
 
-        rospy.Subscriber("ball_relative", BallRelative, self.ball_cb, queue_size=100)
+        rospy.Subscriber("balls_relative", PoseWithCertaintyArray, self.balls_cb, queue_size=100)
         rospy.Subscriber("goal_relative", GoalRelative, self.goal_cb, queue_size=100)
         rospy.Subscriber("obstacles_relative", ObstacleRelativeArray, self.obstacle_cb, queue_size=100)
 
@@ -208,23 +204,29 @@ class HumanoidLeagueRelativeRqt(Plugin):
         item.setX(y)
         item.setY(x)
 
-    def ball_cb(self, msg):
-        ball_point = PointStamped()
-        ball_point.header.frame_id = msg.header.frame_id
-        ball_point.header.stamp = msg.header.stamp
-        ball_point.point = msg.ball_relative
-        try:
-            ball_point = self.tf_buffer.transform(ball_point, "base_footprint")
-        except tf2_ros.LookupException:
-            rospy.logwarn("Could not transform from " + msg.header.frame_id + " to 'base_footprint'")
-            return None
-        if msg.ball_relative is not None:
-            self.set_scaled_position(self.ball, -1 * ball_point.point.x, -1 * ball_point.point.y, self.ball_size,
-                                     self.ball_size)
+    def balls_cb(self, msg):
+        ball_msgs = msg.poses
 
-        color_tuple = self.confidence2color(msg.confidence)
-        self.ball.setBrush(QBrush(QColor(*color_tuple)))
-        self.ball.setVisible(self.ball_active)
+        for ball_msg in ball_msgs:
+            ball_point = PointStamped()
+            ball_point.header.frame_id = msg.header.frame_id
+            ball_point.header.stamp = msg.header.stamp
+            ball_point.point = ball_msg.pose.pose.position
+            try:
+                ball_point = self.tf_buffer.transform(ball_point, "base_footprint")
+            except tf2_ros.LookupException:
+                rospy.logwarn("Could not transform from " + msg.header.frame_id + " to 'base_footprint'")
+                return None
+
+            ball = QGraphicsEllipseItem(0, 0, self.ball_size, self.ball_size, self.radar)
+            ball.setPen(self.ball_pen)
+            ball.setVisible(False)
+            ball.setOpacity(self.opacity)
+            self.set_scaled_position(ball, -1 * ball_point.point.x, -1 * ball_point.point.y, self.ball_size, self.ball_size)
+
+            color_tuple = self.confidence2color(ball_msg.confidence)
+            ball.setBrush(QBrush(QColor(*color_tuple)))
+            ball.setVisible(self.ball_active)
 
     def goal_cb(self, msg):
         self.draw_goal_part(self.left_post, msg, msg.left_post, self.post_size)
