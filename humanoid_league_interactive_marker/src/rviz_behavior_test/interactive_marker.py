@@ -118,8 +118,8 @@ class BallMarker(RobocupInteractiveMarker):
         self.cam_info = cam_info
         self.marker_name = "ball"
         self.interaction_mode = InteractiveMarkerControl.MOVE_PLANE
-        self.absolute_publisher = rospy.Publisher("ball_absolute", PoseWithCertaintyStamped, queue_size=1)
-        self.relative_publisher = rospy.Publisher("ball_relative", PoseWithCertaintyStamped, queue_size=1)
+        self.absolute_publisher = rospy.Publisher("balls_absolute", PoseWithCertaintyArray, queue_size=1)
+        self.relative_publisher = rospy.Publisher("balls_relative", PoseWithCertaintyArray, queue_size=1)
         super(BallMarker, self).__init__(server)
         self.pose.position.x = 1.0
 
@@ -139,16 +139,19 @@ class BallMarker(RobocupInteractiveMarker):
         return (marker,)
 
     def publish_marker(self, e):
-        # construct BallRelative message for map frame
-        ball_absolute = PoseWithCertaintyStamped()
-        ball_absolute.header.stamp = rospy.get_rostime()
-        ball_absolute.header.frame_id = "map"
-        ball_absolute.pose.confidence = 1.0
-        ball_absolute.pose.pose.pose = self.pose
+        # construct PoseWithCertaintyArray() message for map frame
+        ball_absolute = PoseWithCertainty()
+        balls_absolute.pose.pose = self.pose
+        balls_absolute.confidence = 1.0
+
+        balls_absolute = PoseWithCertaintyArray()
+        balls_absolute.header.stamp = rospy.get_rostime()
+        balls_absolute.header.frame_id = "map"
+        balls_absolute.poses = [ball_absolute]
 
         # publish the new ball position
         if self.publish:
-            self.absolute_publisher.publish(ball_absolute)
+            self.absolute_publisher.publish(balls_absolute)
 
         # check if ball is also visible for the robot and publish on relative topic if this is the case
         # only works if camera info is provided
@@ -169,15 +172,16 @@ class BallMarker(RobocupInteractiveMarker):
 
                     # make sure that the transformed pixel is inside the resolution and positive.
                     if 0 < p_pixel[0] <= self.cam_info["width"] and 0 < p_pixel[1] <= self.cam_info["height"]:
-                        ball_relative = PoseWithCertaintyStamped()
-                        ball_relative.header.stamp = ball_in_camera_optical_frame.header.stamp
-                        ball_relative.header.frame_id = "base_footprint"
                         ball_in_footprint_frame = tf_buffer.transform(ball_in_camera_optical_frame, "base_footprint",
                                                                       timeout=rospy.Duration(0.5))
-                        ball_relative.header = ball_in_footprint_frame.header
-                        ball_relative.pose.pose.pose.position = ball_in_footprint_frame.point
-                        ball_relative.pose.confidence = 1.0
-                        self.relative_publisher.publish(ball_relative)
+                        ball_relative = PoseWithCertainty()
+                        ball_relative.pose.pose.position = ball_in_footprint_frame.point
+                        ball_relative.confidence = 1.0
+
+                        balls_relative = PoseWithCertaintyArray()
+                        balls_relative.header = ball_in_footprint_frame.header
+                        balls_relative.poses = [ball_relative]
+                        self.relative_publisher.publish(balls_relative)
             except tf2_ros.LookupException as ex:
                 rospy.logwarn_throttle(10.0, rospy.get_name() + ": " + str(ex))
                 return None
