@@ -6,7 +6,8 @@ import time
 from geometry_msgs.msg import Pose, Vector3, Quaternion
 from std_msgs.msg import ColorRGBA
 from visualization_msgs.msg import MarkerArray, Marker
-from humanoid_league_msgs.msg import BallRelative, GoalRelative, ObstaclesRelative, GoalPartsRelative, GoalPostRelative
+from humanoid_league_msgs.msg import PoseWithCertaintyStamped, PoseWithCertaintyArray, ObstacleRelativeArray, \
+    ObstacleRelative
 
 
 class ShowRobocupObjects:
@@ -102,53 +103,53 @@ class ShowRobocupObjects:
         self.marker_obstacle.type = Marker.CUBE
 
         # todo also display data from world model
-        rospy.Subscriber("/ball_relative", BallRelative, self.ball_cb, queue_size=10)
-        rospy.Subscriber("/goal_relative", GoalRelative, self.goal_cb, queue_size=10)
-        rospy.Subscriber("/goal_parts_relative", GoalPartsRelative, self.goal_parts_cb, queue_size=10)
-        rospy.Subscriber("/obstacles_relative", ObstaclesRelative, self.obstacle_cb, queue_size=10)
+        rospy.Subscriber("/ball_relative", PoseWithCertaintyStamped, self.ball_cb, queue_size=10)
+        rospy.Subscriber("/goal_relative", PoseWithCertaintyArray, self.goal_cb, queue_size=10)
+        rospy.Subscriber("/goal_parts_relative", PoseWithCertaintyArray, self.goal_parts_cb, queue_size=10)
+        rospy.Subscriber("/obstacles_relative", ObstacleRelativeArray, self.obstacle_cb, queue_size=10)
 
         # we do everything in the callbacks
         rospy.spin()
 
-    def ball_cb(self, msg: BallRelative):
+    def ball_cb(self, msg: PoseWithCertaintyStamped):
         self.ball_frame = msg.header.frame_id
         self.marker_ball_rel.header = msg.header
 
-        self.ball_pose.position = msg.ball_relative
+        self.ball_pose.position = msg.pose.pose.pose.position
         self.marker_ball_rel.pose = self.ball_pose
-        self.ball_color.a = msg.confidence
+        self.ball_color.a = msg.pose.confidence
         self.marker_ball_rel.color = self.ball_color
 
         self.marker_publisher.publish(self.marker_ball_rel)
 
-    def goal_cb(self, msg: GoalRelative):
+    def goal_cb(self, msg: PoseWithCertaintyArray):
         # first post
-        if msg.left_post:
+        if len(msg.poses) > 0:
             self.marker_goal_rel1.header = msg.header
-            self.goal_post1_pose.position = msg.left_post
+            self.goal_post1_pose.position = msg.poses[0].pose.pose.position
             self.goal_post1_pose.position.z = self.post_height / 2
             self.marker_goal_rel1.pose = self.goal_post1_pose
-            self.post1_color.a = msg.confidence
+            self.post1_color.a = msg.poses[0].confidence
             self.marker_goal_rel1.color = self.post1_color
             self.marker_publisher.publish(self.marker_goal_rel1)
 
         # second post
-        if msg.right_post:
+        if len(msg.poses) > 1:
             self.marker_goal_rel2.header = msg.header
-            self.goal_post2_pose.position = msg.right_post
+            self.goal_post2_pose.position = msg.poses[1].pose.pose.position
             self.goal_post2_pose.position.z = self.post_height / 2
             self.marker_goal_rel2.pose = self.goal_post2_pose
-            self.post2_color.a = msg.confidence
+            self.post2_color.a = msg.poses[1].confidence
             self.marker_goal_rel2.color = self.post2_color
             self.marker_publisher.publish(self.marker_goal_rel2)
 
-    def goal_parts_cb(self, msg: GoalPartsRelative):
+    def goal_parts_cb(self, msg: PoseWithCertaintyArray):
         arr = []
         i = 0
-        for post in msg.posts:
+        for post in msg.poses:
             post_marker = Marker()
             pose = Pose()
-            pose.position = post.foot_point
+            pose.position = post.pose.pose.position
             post_marker.pose = pose
             post_marker.pose.position.z = self.post_height /2
             post_marker.pose.orientation = Quaternion()
@@ -177,23 +178,24 @@ class ShowRobocupObjects:
         self.goal_parts_marker.markers = arr
         self.marker_array_publisher.publish(self.goal_parts_marker)
 
-    def obstacle_cb(self, msg: ObstaclesRelative):
+    def obstacle_cb(self, msg: ObstacleRelativeArray):
         i = 0
         for obstacle in msg.obstacles:
+            obstacle = ObstacleRelative()
             self.marker_obstacle.header = msg.header
             self.marker_obstacle.id = i
             i += 1
-            self.obstacle_color.a = obstacle.confidence
+            self.obstacle_color.a = obstacle.pose.confidence
             # color depding on type of obstacle
-            if obstacle.color == obstacle.ROBOT_CYAN:
+            if obstacle.type == obstacle.ROBOT_CYAN:
                 self.obstacle_color.r = 0.0
                 self.obstacle_color.g = 0.0
                 self.obstacle_color.b = 1.0
-            elif obstacle.color == obstacle.ROBOT_MAGENTA:
+            elif obstacle.type == obstacle.ROBOT_MAGENTA:
                 self.obstacle_color.r = 1.0
                 self.obstacle_color.g = 0.0
                 self.obstacle_color.b = 0.0
-            elif obstacle.color == obstacle.ROBOT_UNDEFINED:
+            elif obstacle.type == obstacle.ROBOT_UNDEFINED:
                 self.obstacle_color.r = 0.0
                 self.obstacle_color.g = 1.0
                 self.obstacle_color.b = 0.0
@@ -211,7 +213,7 @@ class ShowRobocupObjects:
             self.marker_obstacle.scale = scale
 
             # position
-            self.obstacle_pose.position = obstacle.position
+            self.obstacle_pose.position = obstacle.pose.pose.pose.position
             self.obstacle_pose.position.z = self.obstacle_height / 2
             self.marker_obstacle.pose = self.obstacle_pose
 
