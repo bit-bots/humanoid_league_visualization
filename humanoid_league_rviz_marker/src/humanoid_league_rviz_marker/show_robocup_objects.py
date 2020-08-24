@@ -104,7 +104,7 @@ class ShowRobocupObjects:
         # todo also display data from world model
         rospy.Subscriber("/balls_relative", PoseWithCertaintyArray, self.balls_cb, queue_size=10)
         rospy.Subscriber("/goal_relative", PoseWithCertaintyArray, self.goal_cb, queue_size=10)
-        rospy.Subscriber("/goal_parts_relative", PoseWithCertaintyArray, self.goal_parts_cb, queue_size=10)
+        rospy.Subscriber("/goal_posts_relative", PoseWithCertaintyArray, self.goal_parts_cb, queue_size=10)
         rospy.Subscriber("/obstacles_relative", ObstacleRelativeArray, self.obstacle_cb, queue_size=10)
 
         # we do everything in the callbacks
