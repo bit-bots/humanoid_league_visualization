@@ -197,7 +197,7 @@ class GoalMarker(RobocupInteractiveMarker):
         self.interaction_mode = InteractiveMarkerControl.MOVE_ROTATE
         self.absolute_publisher = rospy.Publisher("goal_absolute", PoseWithCertaintyArray, queue_size=1)
         self.relative_publisher = rospy.Publisher("goal_relative", PoseWithCertaintyArray, queue_size=1)
-        self.relative_posts_publisher = rospy.Publisher("goalposts_relative", PoseWithCertaintyArray, queue_size=1)
+        self.relative_posts_publisher = rospy.Publisher("goal_posts_relative", PoseWithCertaintyArray, queue_size=1)
         super(GoalMarker, self).__init__(server)
         self.menu_handler = MenuHandler()
         self.pose.position.x = 3.0
