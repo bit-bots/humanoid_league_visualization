@@ -116,7 +116,7 @@ class ShowRobocupObjects:
         balls = msg.poses
 
         for ball in balls:
-            self.marker_ball_rel.pose = ball.pose.pose.position
+            self.marker_ball_rel.pose = ball.pose.pose
             self.ball_color.a = ball.confidence
             self.marker_ball_rel.color = self.ball_color
             self.marker_publisher.publish(self.marker_ball_rel)
@@ -178,12 +178,9 @@ class ShowRobocupObjects:
         self.marker_array_publisher.publish(self.goal_parts_marker)
 
     def obstacle_cb(self, msg: ObstacleRelativeArray):
-        i = 0
-        for obstacle in msg.obstacles:
-            obstacle = ObstacleRelative()
+        for idx, obstacle in enumerate(msg.obstacles):
             self.marker_obstacle.header = msg.header
-            self.marker_obstacle.id = i
-            i += 1
+            self.marker_obstacle.id = idx
             self.obstacle_color.a = obstacle.pose.confidence
             # color depding on type of obstacle
             if obstacle.type == obstacle.ROBOT_CYAN:
