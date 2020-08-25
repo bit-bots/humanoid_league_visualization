@@ -141,8 +141,8 @@ class BallMarker(RobocupInteractiveMarker):
     def publish_marker(self, e):
         # construct PoseWithCertaintyArray() message for map frame
         ball_absolute = PoseWithCertainty()
-        balls_absolute.pose.pose = self.pose
-        balls_absolute.confidence = 1.0
+        ball_absolute.pose.pose = self.pose
+        ball_absolute.confidence = 1.0
 
         balls_absolute = PoseWithCertaintyArray()
         balls_absolute.header.stamp = rospy.get_rostime()
@@ -160,7 +160,7 @@ class BallMarker(RobocupInteractiveMarker):
                 ball_point_stamped = PointStamped()
                 ball_point_stamped.header.stamp = rospy.Time.now()
                 ball_point_stamped.header.frame_id = "map"
-                ball_point_stamped.point = ball_absolute.pose.pose.pose.position
+                ball_point_stamped.point = ball_absolute.pose.pose.position
                 ball_in_camera_optical_frame = tf_buffer.transform(ball_point_stamped, self.cam_info["frame_id"],
                                                                    timeout=rospy.Duration(0.5))
                 if ball_in_camera_optical_frame.point.z >= 0:
@@ -271,7 +271,7 @@ class GoalMarker(RobocupInteractiveMarker):
                 goal_left_point_stamped = PointStamped()
                 goal_left_point_stamped.header.stamp = goal_relative.header.stamp
                 goal_left_point_stamped.header.frame_id = "map"
-                goal_left_point_stamped.point = left_post
+                goal_left_point_stamped.point = left_post.pose.pose.position
                 left_post_in_camera_optical_frame = tf_buffer.transform(goal_left_point_stamped,
                                                                         self.cam_info["frame_id"],
                                                                         timeout=rospy.Duration(0.5))
@@ -288,16 +288,16 @@ class GoalMarker(RobocupInteractiveMarker):
 
                     if 0 < p_pixel[0] <= self.cam_info["width"] and 0 < p_pixel[1] <= self.cam_info["height"]:
                         left_post = PoseWithCertainty()
-                        left_post.pose.pose = tf_buffer.transform(left_post_in_camera_optical_frame,
-                                                                  "base_footprint",
-                                                                  timeout=rospy.Duration(0.5))
+                        left_post.pose.pose.position = tf_buffer.transform(left_post_in_camera_optical_frame,
+                                                                           "base_footprint",
+                                                                           timeout=rospy.Duration(0.5)).point
                         goal_relative.poses.append(left_post)
                         lpost_visible = True
 
                 goal_right_point_stamped = PointStamped()
                 goal_right_point_stamped.header.stamp = goal_relative.header.stamp
                 goal_right_point_stamped.header.frame_id = "map"
-                goal_right_point_stamped.point = right_post
+                goal_right_point_stamped.point = right_post.pose.pose.position
                 right_post_in_camera_optical_frame = tf_buffer.transform(goal_right_point_stamped,
                                                                          self.cam_info["frame_id"],
                                                                          timeout=rospy.Duration(0.5))
@@ -310,9 +310,9 @@ class GoalMarker(RobocupInteractiveMarker):
 
                     if 0 < p_pixel[0] <= self.cam_info["width"] and 0 < p_pixel[1] <= self.cam_info["height"]:
                         right_post = PoseWithCertainty()
-                        right_post.pose.pose = tf_buffer.transform(right_post_in_camera_optical_frame,
-                                                                   "base_footprint",
-                                                                   timeout=rospy.Duration(0.5))
+                        right_post.pose.pose.position = tf_buffer.transform(right_post_in_camera_optical_frame,
+                                                                            "base_footprint",
+                                                                            timeout=rospy.Duration(0.5)).point
                         goal_relative.poses.append(right_post)
                         rpost_visible = True
 
