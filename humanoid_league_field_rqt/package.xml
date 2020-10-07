@@ -32,6 +32,7 @@
   <depend>rospy</depend>
   <depend>dynamic_reconfigure</depend>
   <depend>std_msgs</depend>
+  <depend>bitbots_docs</depend>
 
 
   <export>
