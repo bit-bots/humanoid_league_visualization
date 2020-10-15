@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(humanoid_league_field_rqt)
 # Load catkin and all dependencies required for this package
-find_package(catkin REQUIRED COMPONENTS dynamic_reconfigure std_msgs humanoid_league_msgs rospy)
+find_package(catkin REQUIRED COMPONENTS dynamic_reconfigure std_msgs humanoid_league_msgs rospy bitbots_docs)
 
 
 
@@ -13,6 +13,8 @@ catkin_python_setup()
 )
 
 catkin_package()
+
+enable_bitbots_docs()
 
 install(FILES plugin.xml
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
