@@ -63,6 +63,11 @@ Visualization Manager:
       Show Visual Aids: false
       Update Topic: /basic_controls/update
       Value: true
+    - Class: rviz/Marker
+      Enabled: true
+      Marker Topic: /visualization_world_model_markers
+      Name: WorldModelMarker
+      Queue Size: 100
     - Alpha: 1
       Class: rviz/RobotModel
       Collision Enabled: false
