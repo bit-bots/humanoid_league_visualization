@@ -18,8 +18,8 @@ class ShowRobocupObjects:
         rospy.init_node("show_robocup_objects")
         # todo make dyn reconf able
         # todo add line markers
-        self.marker_publisher = rospy.Publisher("/robocup_markers", Marker, queue_size=10)
-        self.marker_array_publisher = rospy.Publisher("/robocup_marker_arrays", MarkerArray, queue_size=10)
+        self.marker_publisher = rospy.Publisher("robocup_markers", Marker, queue_size=10)
+        self.marker_array_publisher = rospy.Publisher("robocup_marker_arrays", MarkerArray, queue_size=10)
 
         # object properties
         self.ball_diameter = 0.13
@@ -102,10 +102,10 @@ class ShowRobocupObjects:
         self.marker_obstacle.type = Marker.CUBE
 
         # todo also display data from world model
-        rospy.Subscriber("/balls_relative", PoseWithCertaintyArray, self.balls_cb, queue_size=10)
-        rospy.Subscriber("/goal_relative", PoseWithCertaintyArray, self.goal_cb, queue_size=10)
-        rospy.Subscriber("/goal_posts_relative", PoseWithCertaintyArray, self.goal_parts_cb, queue_size=10)
-        rospy.Subscriber("/obstacles_relative", ObstacleRelativeArray, self.obstacle_cb, queue_size=10)
+        rospy.Subscriber("balls_relative", PoseWithCertaintyArray, self.balls_cb, queue_size=10)
+        rospy.Subscriber("goal_relative", PoseWithCertaintyArray, self.goal_cb, queue_size=10)
+        rospy.Subscriber("goal_posts_relative", PoseWithCertaintyArray, self.goal_parts_cb, queue_size=10)
+        rospy.Subscriber("obstacles_relative", ObstacleRelativeArray, self.obstacle_cb, queue_size=10)
 
         # we do everything in the callbacks
         rospy.spin()
