@@ -1,0 +1,27 @@
+---
+# See http://doku.bit-bots.de/meta/manual/software/ci.html#make-package-resolvable-in-ci
+check-presence-script: '#!/bin/bash
+
+  test -d $BITBOTS_CATKIN_WORKSPACE/src/humanoid_league_field_rqt'
+depends:
+- bitbots_docs
+- dynamic_reconfigure
+- humanoid_league_msgs
+- python3-rospkg
+- python_qt_binding
+- qt_dotgraph
+- rosgraph
+- rosgraph_msgs
+- roslib
+- rosnode
+- rospy
+- rosservice
+- rostopic
+- rqt_gui
+- rqt_gui_py
+- std_msgs
+exec-path: humanoid_league_visualization-master/humanoid_league_field_rqt
+install-script: '#!/bin/bash
+
+  cp -r . $BITBOTS_CATKIN_WORKSPACE/src/humanoid_league_field_rqt'
+uri: https://github.com/bit-bots/humanoid_league_visualization/archive/refs/heads/master.tar.gz
