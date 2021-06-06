@@ -387,7 +387,7 @@ class ObstacleMarker(RobocupInteractiveMarker):
         marker = Marker()
 
         marker.type = Marker.CYLINDER
-        marker.scale = Vector3(POST_DIAMETER, POST_DIAMETER, OBSTACLE_HEIGT)
+        marker.scale = Vector3(OBSTACLE_DIAMETER, OBSTACLE_DIAMETER, OBSTACLE_HEIGT)
         marker.color.r = 0.0
         marker.color.g = 0.0
         marker.color.b = 0.0
