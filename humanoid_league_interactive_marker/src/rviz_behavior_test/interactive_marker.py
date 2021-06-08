@@ -494,9 +494,9 @@ if __name__ == "__main__":
     server.applyChanges()
 
     # create a timer to update the published ball transform
-    rospy.Timer(rospy.Duration(0.1), ball.publish_marker)
-    rospy.Timer(rospy.Duration(0.1), goal.publish_marker)
-    rospy.Timer(rospy.Duration(0.1), obstacles.publish_marker)
+    rospy.Timer(rospy.Duration(0.05), ball.publish_marker)
+    rospy.Timer(rospy.Duration(0.05), goal.publish_marker)
+    rospy.Timer(rospy.Duration(0.05), obstacles.publish_marker)
 
     # run and block until finished
     rospy.spin()
