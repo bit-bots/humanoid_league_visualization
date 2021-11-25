@@ -1,5 +1,10 @@
-camera_info:
-  frame_id: "camera_optical_frame"
-  height: 600
-  width: 800
-  K: [698.6145056581588, 0.0, 400.0, 0.0, 698.6145056581588, 300.0, 0.0, 0.0, 1.0]
+humanoid_league_interactive_marker:
+  ros__parameters:
+    # Used to determine if object should be visible
+    camera_info:  # Updated to jacks camera info from wide angle camera
+      frame_id: "camera_optical_frame"
+      height: 1536
+      width: 2048
+      K: [1338.64532, 0.        , 1026.12387,
+          0.        , 1337.89746, 748.42213 ,
+          0.        , 0.        , 1.         ]

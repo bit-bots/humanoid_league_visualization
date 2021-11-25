@@ -28,11 +28,11 @@ CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
 ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
 """
-import traceback
 
-import rospy
 import copy
 import math
+import rclpy
+import numpy as np
 
 from interactive_markers.interactive_marker_server import InteractiveMarkerServer
 from interactive_markers.menu_handler import MenuHandler
@@ -43,7 +43,6 @@ from geometry_msgs.msg import Pose, Point, Quaternion, Vector3
 from tf2_geometry_msgs import PointStamped
 from tf.transformations import euler_from_quaternion
 import tf2_ros
-import numpy as np
 
 BALL_DIAMETER = 0.13
 GOAL_WIDTH = 1.5
@@ -479,8 +478,7 @@ class ObstacleMarkerArray:
         self.relative_publisher.publish(relative_msg)
 
 
-if __name__ == "__main__":
-
+def main():
     # get camera info
     cam_info = rospy.get_param("/camera_info", None)
     if not cam_info:
