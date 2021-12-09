@@ -31,14 +31,16 @@ POSSIBILITY OF SUCH DAMAGE.
 
 import copy
 import math
-import rclpy
 import numpy as np
+import rclpy
+from rclpy import logging
+from rclpy.node import Node
 
+from builtin_interfaces.msg import Duration
 from interactive_markers.interactive_marker_server import InteractiveMarkerServer
 from interactive_markers.menu_handler import MenuHandler
 from visualization_msgs.msg import InteractiveMarker, InteractiveMarkerControl, Marker
-from humanoid_league_msgs.msg import PoseWithCertaintyStamped, PoseWithCertaintyArray, \
-    ObstacleRelative, ObstacleRelativeArray, PoseWithCertainty
+from humanoid_league_msgs.msg import PoseWithCertaintyArray, ObstacleRelative, ObstacleRelativeArray, PoseWithCertainty
 from geometry_msgs.msg import Pose, Point, Quaternion, Vector3
 from tf2_geometry_msgs import PointStamped
 from tf.transformations import euler_from_quaternion
@@ -49,15 +51,16 @@ GOAL_WIDTH = 1.5
 GOAL_HEIGHT = 1.1
 POST_DIAMETER = 0.1
 OBSTACLE_NUMBER = 4
-OBSTACLE_HEIGT = 0.8
+OBSTACLE_HEIGHT = 0.8
 OBSTACLE_DIAMETER = 0.2
 
-rospy.init_node("humanoid_league_interactive_marker")
-tf_buffer = tf2_ros.Buffer(rospy.Duration(30))
+logger = logging.getLogger('humanoid_league_interactive_marker')
+
+tf_buffer = tf2_ros.Buffer(Duration(seconds=30))
 tf_listener = tf2_ros.TransformListener(tf_buffer)
 
 
-class RobocupInteractiveMarker(object):
+class RobocupInteractiveMarker():
     def __init__(self, server):
         self.server = server
         self.pose = Pose()
@@ -113,12 +116,13 @@ class RobocupInteractiveMarker(object):
 
 
 class BallMarker(RobocupInteractiveMarker):
-    def __init__(self, server, cam_info):
+    def __init__(self, server, node, cam_info):
+        self.node = node
         self.cam_info = cam_info
         self.marker_name = "ball"
         self.interaction_mode = InteractiveMarkerControl.MOVE_PLANE
-        self.absolute_publisher = rospy.Publisher("balls_absolute", PoseWithCertaintyArray, queue_size=1)
-        self.relative_publisher = rospy.Publisher("balls_relative", PoseWithCertaintyArray, queue_size=1)
+        self.absolute_publisher = self.node.create_publisher(PoseWithCertaintyArray, "balls_absolute", qos_profile=1)
+        self.relative_publisher = self.node.create_publisher(PoseWithCertaintyArray, "balls_relative", qos_profile=1)
         super(BallMarker, self).__init__(server)
         self.pose.position.x = 1.0
 
@@ -144,7 +148,7 @@ class BallMarker(RobocupInteractiveMarker):
         ball_absolute.confidence = 1.0
 
         balls_absolute = PoseWithCertaintyArray()
-        balls_absolute.header.stamp = rospy.get_rostime()
+        balls_absolute.header.stamp = self.node.get_clock().now().to_msg()
         balls_absolute.header.frame_id = "map"
         balls_absolute.poses = [ball_absolute]
 
@@ -157,11 +161,11 @@ class BallMarker(RobocupInteractiveMarker):
         if self.cam_info:
             try:
                 ball_point_stamped = PointStamped()
-                ball_point_stamped.header.stamp = rospy.Time.now()
+                ball_point_stamped.header.stamp = self.node.get_clock().now().to_msg()
                 ball_point_stamped.header.frame_id = "map"
                 ball_point_stamped.point = ball_absolute.pose.pose.position
                 ball_in_camera_optical_frame = tf_buffer.transform(ball_point_stamped, self.cam_info["frame_id"],
-                                                                   timeout=rospy.Duration(0.5))
+                                                                   timeout=Duration(seconds=0.5))
                 if ball_in_camera_optical_frame.point.z >= 0:
                     p = [ball_in_camera_optical_frame.point.x, ball_in_camera_optical_frame.point.y,
                          ball_in_camera_optical_frame.point.z]
@@ -172,7 +176,7 @@ class BallMarker(RobocupInteractiveMarker):
                     # make sure that the transformed pixel is inside the resolution and positive.
                     if 0 < p_pixel[0] <= self.cam_info["width"] and 0 < p_pixel[1] <= self.cam_info["height"]:
                         ball_in_footprint_frame = tf_buffer.transform(ball_in_camera_optical_frame, "base_footprint",
-                                                                      timeout=rospy.Duration(0.5))
+                                                                      timeout=Duration(seconds=0.5))
                         ball_relative = PoseWithCertainty()
                         ball_relative.pose.pose.position = ball_in_footprint_frame.point
                         ball_relative.confidence = 1.0
@@ -182,21 +186,22 @@ class BallMarker(RobocupInteractiveMarker):
                         balls_relative.poses = [ball_relative]
                         self.relative_publisher.publish(balls_relative)
             except tf2_ros.LookupException as ex:
-                rospy.logwarn_throttle(10.0, rospy.get_name() + ": " + str(ex))
+                logger.warning(ex, throttle_duration_sec=10.0)
                 return None
             except tf2_ros.ExtrapolationException as ex:
-                rospy.logwarn_throttle(10.0, rospy.get_name() + ": " + str(ex))
+                logger.warning(ex, throttle_duration_sec=10.0)
                 return None
 
 
 class GoalMarker(RobocupInteractiveMarker):
-    def __init__(self, server, cam_info):
+    def __init__(self, server, node, cam_info):
+        self.node = node
         self.cam_info = cam_info
         self.marker_name = "goal"
         self.interaction_mode = InteractiveMarkerControl.MOVE_ROTATE
-        self.absolute_publisher = rospy.Publisher("goal_absolute", PoseWithCertaintyArray, queue_size=1)
-        self.relative_publisher = rospy.Publisher("goal_relative", PoseWithCertaintyArray, queue_size=1)
-        self.relative_posts_publisher = rospy.Publisher("goal_posts_relative", PoseWithCertaintyArray, queue_size=1)
+        self.absolute_publisher = self.node.create_publisher(PoseWithCertaintyArray, "goal_absolute", qos_profile=1)
+        self.relative_publisher = self.node.create_publisher(PoseWithCertaintyArray, "goal_relative", qos_profile=1)
+        self.relative_posts_publisher = self.node.create_publisher(PoseWithCertaintyArray, "goal_posts_relative", qos_profile=1)
         super(GoalMarker, self).__init__(server)
         self.menu_handler = MenuHandler()
         self.pose.position.x = 3.0
@@ -235,7 +240,7 @@ class GoalMarker(RobocupInteractiveMarker):
     def publish_marker(self, e):
         # construct GoalRelative message
         goal_absolute = PoseWithCertaintyArray()
-        goal_absolute.header.stamp = rospy.get_rostime()
+        goal_absolute.header.stamp = self.node.get_clock().now().to_msg()
         goal_absolute.header.frame_id = "map"
         # calculate the positions of the right and the left post
         orientation = euler_from_quaternion((self.pose.orientation.x, self.pose.orientation.y,
@@ -264,7 +269,7 @@ class GoalMarker(RobocupInteractiveMarker):
         if self.cam_info:
             try:
                 goal_relative = PoseWithCertaintyArray()
-                goal_relative.header.stamp = rospy.Time.now()
+                goal_relative.header.stamp = self.node.get_clock().now().to_msg()
                 goal_relative.header.frame_id = "base_footprint"
 
                 goal_left_point_stamped = PointStamped()
@@ -273,7 +278,7 @@ class GoalMarker(RobocupInteractiveMarker):
                 goal_left_point_stamped.point = left_post.pose.pose.position
                 left_post_in_camera_optical_frame = tf_buffer.transform(goal_left_point_stamped,
                                                                         self.cam_info["frame_id"],
-                                                                        timeout=rospy.Duration(0.5))
+                                                                        timeout=Duration(seconds=0.5))
 
                 lpost_visible = False
                 rpost_visible = False
@@ -289,7 +294,7 @@ class GoalMarker(RobocupInteractiveMarker):
                         left_post = PoseWithCertainty()
                         left_post.pose.pose.position = tf_buffer.transform(left_post_in_camera_optical_frame,
                                                                            "base_footprint",
-                                                                           timeout=rospy.Duration(0.5)).point
+                                                                           timeout=Duration(seconds=0.5)).point
                         goal_relative.poses.append(left_post)
                         lpost_visible = True
 
@@ -299,7 +304,7 @@ class GoalMarker(RobocupInteractiveMarker):
                 goal_right_point_stamped.point = right_post.pose.pose.position
                 right_post_in_camera_optical_frame = tf_buffer.transform(goal_right_point_stamped,
                                                                          self.cam_info["frame_id"],
-                                                                         timeout=rospy.Duration(0.5))
+                                                                         timeout=Duration(seconds=0.5))
                 if right_post_in_camera_optical_frame.point.z >= 0:
                     p = [right_post_in_camera_optical_frame.point.x, right_post_in_camera_optical_frame.point.y,
                          right_post_in_camera_optical_frame.point.z]
@@ -311,7 +316,7 @@ class GoalMarker(RobocupInteractiveMarker):
                         right_post = PoseWithCertainty()
                         right_post.pose.pose.position = tf_buffer.transform(right_post_in_camera_optical_frame,
                                                                             "base_footprint",
-                                                                            timeout=rospy.Duration(0.5)).point
+                                                                            timeout=Duration(seconds=0.5)).point
                         goal_relative.poses.append(right_post)
                         rpost_visible = True
 
@@ -321,15 +326,16 @@ class GoalMarker(RobocupInteractiveMarker):
                     self.relative_posts_publisher.publish(goal_relative)
 
             except tf2_ros.LookupException as ex:
-                rospy.logwarn_throttle(10.0, rospy.get_name() + ": " + str(ex))
+                logger.warning(ex, throttle_duration_sec=10.0)
                 return None
             except tf2_ros.ExtrapolationException as ex:
-                rospy.logwarn_throttle(10.0, rospy.get_name() + ": " + str(ex))
+                logger.warning(ex, throttle_duration_sec=10.0)
                 return None
 
 
 class ObstacleMarker(RobocupInteractiveMarker):
-    def __init__(self, server, cam_info, name):
+    def __init__(self, server, node, cam_info, name):
+        self.node = node
         self.cam_info = cam_info
         self.marker_name = name
         self.type = 0  # unknown
@@ -386,19 +392,19 @@ class ObstacleMarker(RobocupInteractiveMarker):
         marker = Marker()
 
         marker.type = Marker.CYLINDER
-        marker.scale = Vector3(OBSTACLE_DIAMETER, OBSTACLE_DIAMETER, OBSTACLE_HEIGT)
+        marker.scale = Vector3(OBSTACLE_DIAMETER, OBSTACLE_DIAMETER, OBSTACLE_HEIGHT)
         marker.color.r = 0.0
         marker.color.g = 0.0
         marker.color.b = 0.0
         marker.color.a = 0.4
-        marker.pose.position = Point(0, 0, OBSTACLE_HEIGT / 2)
+        marker.pose.position = Point(0, 0, OBSTACLE_HEIGHT / 2)
 
         return (marker,)
 
     def get_absolute_message(self):
         msg = ObstacleRelative()
         msg.pose.pose.pose.position = self.pose.position
-        msg.height = OBSTACLE_HEIGT
+        msg.height = OBSTACLE_HEIGHT
         msg.width = OBSTACLE_DIAMETER
         msg.type = self.type
         msg.pose.confidence = self.confidence
@@ -410,12 +416,12 @@ class ObstacleMarker(RobocupInteractiveMarker):
         if self.cam_info:
             try:
                 obstacle_point_stamped = PointStamped()
-                obstacle_point_stamped.header.stamp = rospy.Time.now()
+                obstacle_point_stamped.header.stamp = self.node.get_clock().now().to_msg()
                 obstacle_point_stamped.header.frame_id = "map"
                 obstacle_point_stamped.point = self.pose.position
                 obstacle_in_camera_optical_frame = tf_buffer.transform(obstacle_point_stamped,
                                                                        self.cam_info["frame_id"],
-                                                                       timeout=rospy.Duration(0.5))
+                                                                       timeout=Duration(seconds=0.5))
                 if obstacle_in_camera_optical_frame.point.z >= 0:
                     p = [obstacle_in_camera_optical_frame.point.x, obstacle_in_camera_optical_frame.point.y,
                          obstacle_in_camera_optical_frame.point.z]
@@ -428,38 +434,39 @@ class ObstacleMarker(RobocupInteractiveMarker):
                         obstacle_relative = ObstacleRelative()
                         ball_in_footprint_frame = tf_buffer.transform(obstacle_in_camera_optical_frame,
                                                                       "base_footprint",
-                                                                      timeout=rospy.Duration(0.5))
+                                                                      timeout=Duration(seconds=0.5))
                         obstacle_relative.pose.pose.pose.position = ball_in_footprint_frame.point
                         obstacle_relative.pose.confidence = self.confidence
                         obstacle_relative.playerNumber = self.player_number
                         obstacle_relative.type = self.type
                         return obstacle_relative
             except tf2_ros.LookupException as ex:
-                rospy.logwarn_throttle(10.0, rospy.get_name() + ": " + str(ex))
+                logger.warning(ex, throttle_duration_sec=10.0)
                 return None
             except tf2_ros.ExtrapolationException as ex:
-                rospy.logwarn_throttle(10.0, rospy.get_name() + ": " + str(ex))
+                logger.warning(ex, throttle_duration_sec=10.0)
                 return None
 
         return None
 
 
 class ObstacleMarkerArray:
-    def __init__(self, server, cam_info):
+    def __init__(self, server, node, cam_info):
+        self.node = node
         self.cam_info = cam_info
-        self.absolute_publisher = rospy.Publisher("obstacles_absolute", ObstacleRelativeArray, queue_size=1)
-        self.relative_publisher = rospy.Publisher("obstacles_relative", ObstacleRelativeArray, queue_size=1)
+        self.absolute_publisher = self.node.create_publisher(ObstacleRelativeArray, "obstacles_absolute", qos_profile=1)
+        self.relative_publisher = self.node.create_publisher(ObstacleRelativeArray, "obstacles_relative", qos_profile=1)
         self.obstacles = []
         for i in range(0, OBSTACLE_NUMBER):
             self.obstacles.append(ObstacleMarker(server, cam_info, "obstacle_" + str(i)))
 
     def publish_marker(self, e):
         absolut_msg = ObstacleRelativeArray()
-        absolut_msg.header.stamp = rospy.Time.now()
+        absolut_msg.header.stamp = self.node.get_clock().now().to_msg()
         absolut_msg.header.frame_id = "map"
         absolut_obstacles = []
         relative_msg = ObstacleRelativeArray()
-        relative_msg.header.stamp = rospy.Time.now()
+        relative_msg.header.stamp = self.node.get_clock().now().to_msg()
         relative_msg.header.frame_id = "base_footprint"
         relative_obstacles = []
 
@@ -478,23 +485,30 @@ class ObstacleMarkerArray:
         self.relative_publisher.publish(relative_msg)
 
 
-def main():
-    # get camera info
-    cam_info = rospy.get_param("/camera_info", None)
+def main(args=None):
+    rclpy.init(args=args)
+    node = RobocupInteractiveMarker()
+
+    # get camera info from config
+    cam_info = node.declare_parameter('camera_info', None).value
     if not cam_info:
-        rospy.logwarn("No camera info provided from parameter server. Will only publish absolute messages!")
+        logger.warning("No camera info provided from parameter server. Will only publish absolute messages!")
     # retrieve InteractiveMarkerServer and setup subscribers and publishers
     server = InteractiveMarkerServer("basic_controls")
-    ball = BallMarker(server, cam_info)
-    goal = GoalMarker(server, cam_info)
-    obstacles = ObstacleMarkerArray(server, cam_info)
+    ball = BallMarker(server, node, cam_info)
+    goal = GoalMarker(server, node, cam_info)
+    obstacles = ObstacleMarkerArray(server, node, cam_info)
 
     server.applyChanges()
 
     # create a timer to update the published ball transform
-    rospy.Timer(rospy.Duration(0.05), ball.publish_marker)
-    rospy.Timer(rospy.Duration(0.05), goal.publish_marker)
-    rospy.Timer(rospy.Duration(0.05), obstacles.publish_marker)
+    node.create_timer(0.05, ball.publish_marker)
+    node.create_timer(0.05, goal.publish_marker)
+    node.create_timer(0.05, obstacles.publish_marker)
 
-    # run and block until finished
-    rospy.spin()
+    try:
+        rclpy.spin(node)
+    except KeyboardInterrupt:
+        pass
+    node.destroy_node()
+    rclpy.shutdown()

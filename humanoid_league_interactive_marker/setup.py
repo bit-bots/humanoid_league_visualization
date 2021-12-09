@@ -5,7 +5,6 @@ from setuptools import setup
 
 package_name = 'humanoid_league_interactive_marker'
 
-
 setup(
     name=package_name,
     packages=find_packages(exclude=['test']),
@@ -29,7 +28,7 @@ setup(
     license='MIT',
     entry_points={
         'console_scripts': [
-            'humanoid_league_interactive_marker = interactive_marker:main',
+            f'interactive_marker = {package_name}.interactive_marker:main',
         ],
     }
 )
