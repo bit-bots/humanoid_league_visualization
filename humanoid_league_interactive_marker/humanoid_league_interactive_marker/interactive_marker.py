@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-
 """
 Copyright (c) 2011, Willow Garage, Inc.
 All rights reserved.
@@ -29,22 +28,25 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
 """
 
+import abc
 import copy
 import math
+
 import numpy as np
+import tf2_ros
+
 import rclpy
 from rclpy import logging
-from rclpy.node import Node
+from rclpy.duration import Duration
 
-from builtin_interfaces.msg import Duration
 from interactive_markers.interactive_marker_server import InteractiveMarkerServer
 from interactive_markers.menu_handler import MenuHandler
 from visualization_msgs.msg import InteractiveMarker, InteractiveMarkerControl, Marker
-from humanoid_league_msgs.msg import PoseWithCertaintyArray, ObstacleRelative, ObstacleRelativeArray, PoseWithCertainty
 from geometry_msgs.msg import Pose, Point, Quaternion, Vector3
 from tf2_geometry_msgs import PointStamped
-from tf.transformations import euler_from_quaternion
-import tf2_ros
+from tf_transformations import euler_from_quaternion
+
+from humanoid_league_msgs.msg import PoseWithCertaintyArray, ObstacleRelative, ObstacleRelativeArray, PoseWithCertainty
 
 BALL_DIAMETER = 0.13
 GOAL_WIDTH = 1.5
@@ -54,18 +56,33 @@ OBSTACLE_NUMBER = 4
 OBSTACLE_HEIGHT = 0.8
 OBSTACLE_DIAMETER = 0.2
 
-logger = logging.getLogger('humanoid_league_interactive_marker')
+CAMERA_INFO = {  # Updated to jacks camera info from wide angle camera
+    'frame_id': "camera_optical_frame",
+    'height': 1536,
+    'width': 2048,
+    'K': [
+        1338.64532, 0.        , 1026.12387,
+        0.        , 1337.89746, 748.42213 ,
+        0.        , 0.        , 1.         ,
+        ],
+}
 
-tf_buffer = tf2_ros.Buffer(Duration(seconds=30))
-tf_listener = tf2_ros.TransformListener(tf_buffer)
+NODE_NAME = 'humanoid_league_interactive_marker'
+
+logger = logging.get_logger(NODE_NAME)
 
 
-class RobocupInteractiveMarker():
-    def __init__(self, server):
+class AbstractRobocupInteractiveMarker():
+
+    def __init__(self, server, tf_buffer, marker_name, interaction_mode):
         self.server = server
+        self.tf_buffer = tf_buffer
+        self.marker_name = marker_name
+        self.interaction_mode = interaction_mode
+
         self.pose = Pose()
         self.publish = True
-        self.int_marker = None
+        self.interactive_marker = None
         self.make_marker()
         self.menu_handler = MenuHandler()
         item = self.menu_handler.insert("publish", callback=self.menu_callback)
@@ -89,41 +106,47 @@ class RobocupInteractiveMarker():
         self.server.applyChanges()
 
     def make_marker(self):
-        self.int_marker = InteractiveMarker()
-        self.int_marker.header.frame_id = "map"
-        self.int_marker.pose = self.pose
-        self.int_marker.scale = 1
+        self.interactive_marker = InteractiveMarker()
+        self.interactive_marker.header.frame_id = "map"
+        self.interactive_marker.pose = self.pose
+        self.interactive_marker.scale = 1.0
 
-        self.int_marker.name = self.marker_name
+        self.interactive_marker.name = self.marker_name
 
         control = InteractiveMarkerControl()
         control.orientation.w = math.sqrt(2) / 2
-        control.orientation.x = 0
+        control.orientation.x = 0.0
         control.orientation.y = math.sqrt(2) / 2
-        control.orientation.z = 0
+        control.orientation.z = 0.0
         control.interaction_mode = self.interaction_mode
-        self.int_marker.controls.append(copy.deepcopy(control))
+        self.interactive_marker.controls.append(copy.deepcopy(control))
 
         # make a box which also moves in the plane
-        markers = self.make_individual_markers(self.int_marker)
+        markers = self.make_individual_markers(self.interactive_marker)
         for marker in markers:
             control.markers.append(marker)
         control.always_visible = True
-        self.int_marker.controls.append(control)
+        self.interactive_marker.controls.append(control)
 
         # we want to use our special callback function
-        self.server.insert(self.int_marker, self.feedback)
+        self.server.insert(self.interactive_marker,
+                           feedback_callback=self.feedback)
+
+    @abc.abstractmethod
+    def make_individual_markers(self, msg):
+        ...
 
 
-class BallMarker(RobocupInteractiveMarker):
-    def __init__(self, server, node, cam_info):
+class BallMarker(AbstractRobocupInteractiveMarker):
+
+    def __init__(self, server, tf_buffer, node):
         self.node = node
-        self.cam_info = cam_info
-        self.marker_name = "ball"
-        self.interaction_mode = InteractiveMarkerControl.MOVE_PLANE
-        self.absolute_publisher = self.node.create_publisher(PoseWithCertaintyArray, "balls_absolute", qos_profile=1)
-        self.relative_publisher = self.node.create_publisher(PoseWithCertaintyArray, "balls_relative", qos_profile=1)
-        super(BallMarker, self).__init__(server)
+        self.absolute_publisher = self.node.create_publisher(
+            PoseWithCertaintyArray, "balls_absolute", qos_profile=1)
+        self.relative_publisher = self.node.create_publisher(
+            PoseWithCertaintyArray, "balls_relative", qos_profile=1)
+        super().__init__(server, tf_buffer, "ball",
+                         InteractiveMarkerControl.MOVE_PLANE)
         self.pose.position.x = 1.0
 
     def make_individual_markers(self, msg):
@@ -139,9 +162,9 @@ class BallMarker(RobocupInteractiveMarker):
         marker.color.b = 0.0
         marker.color.a = 0.4
 
-        return (marker,)
+        return (marker, )
 
-    def publish_marker(self, e):
+    def publish_marker(self):
         # construct PoseWithCertaintyArray() message for map frame
         ball_absolute = PoseWithCertainty()
         ball_absolute.pose.pose = self.pose
@@ -157,105 +180,129 @@ class BallMarker(RobocupInteractiveMarker):
             self.absolute_publisher.publish(balls_absolute)
 
         # check if ball is also visible for the robot and publish on relative topic if this is the case
-        # only works if camera info is provided
-        if self.cam_info:
-            try:
-                ball_point_stamped = PointStamped()
-                ball_point_stamped.header.stamp = self.node.get_clock().now().to_msg()
-                ball_point_stamped.header.frame_id = "map"
-                ball_point_stamped.point = ball_absolute.pose.pose.position
-                ball_in_camera_optical_frame = tf_buffer.transform(ball_point_stamped, self.cam_info["frame_id"],
-                                                                   timeout=Duration(seconds=0.5))
-                if ball_in_camera_optical_frame.point.z >= 0:
-                    p = [ball_in_camera_optical_frame.point.x, ball_in_camera_optical_frame.point.y,
-                         ball_in_camera_optical_frame.point.z]
-                    k = np.reshape(self.cam_info["K"], (3, 3))
-                    p_pixel = np.matmul(k, p)
-                    p_pixel = p_pixel * (1 / p_pixel[2])
+        try:
+            ball_point_stamped = PointStamped()
+            ball_point_stamped.header.stamp = self.node.get_clock().now(
+            ).to_msg()
+            ball_point_stamped.header.frame_id = "map"
+            ball_point_stamped.point = ball_absolute.pose.pose.position
+            ball_in_camera_optical_frame = self.tf_buffer.transform(
+                ball_point_stamped,
+                CAMERA_INFO["frame_id"],
+                timeout=Duration(nanoseconds=500_000_000))  # Half a second
+            if ball_in_camera_optical_frame.point.z >= 0:
+                point = [
+                    ball_in_camera_optical_frame.point.x,
+                    ball_in_camera_optical_frame.point.y,
+                    ball_in_camera_optical_frame.point.z
+                ]
+                k = np.reshape(CAMERA_INFO["K"], (3, 3))
+                point_pixel = np.matmul(k, point)
+                point_pixel = point_pixel * (1 / point_pixel[2])
 
-                    # make sure that the transformed pixel is inside the resolution and positive.
-                    if 0 < p_pixel[0] <= self.cam_info["width"] and 0 < p_pixel[1] <= self.cam_info["height"]:
-                        ball_in_footprint_frame = tf_buffer.transform(ball_in_camera_optical_frame, "base_footprint",
-                                                                      timeout=Duration(seconds=0.5))
-                        ball_relative = PoseWithCertainty()
-                        ball_relative.pose.pose.position = ball_in_footprint_frame.point
-                        ball_relative.confidence = 1.0
+                # make sure that the transformed pixel is inside the resolution and positive.
+                if (0 < point_pixel[0] <= CAMERA_INFO["width"]
+                        and 0 < point_pixel[1] <= CAMERA_INFO["height"]):
+                    ball_in_footprint_frame = self.tf_buffer.transform(
+                        ball_in_camera_optical_frame,
+                        "base_footprint",
+                        timeout=Duration(
+                            nanoseconds=500_000_000))  # Half a second
+                    ball_relative = PoseWithCertainty()
+                    ball_relative.pose.pose.position = ball_in_footprint_frame.point
+                    ball_relative.confidence = 1.0
 
-                        balls_relative = PoseWithCertaintyArray()
-                        balls_relative.header = ball_in_footprint_frame.header
-                        balls_relative.poses = [ball_relative]
-                        self.relative_publisher.publish(balls_relative)
-            except tf2_ros.LookupException as ex:
-                logger.warning(ex, throttle_duration_sec=10.0)
-                return None
-            except tf2_ros.ExtrapolationException as ex:
-                logger.warning(ex, throttle_duration_sec=10.0)
-                return None
+                    balls_relative = PoseWithCertaintyArray()
+                    balls_relative.header = ball_in_footprint_frame.header
+                    balls_relative.poses = [ball_relative]
+                    self.relative_publisher.publish(balls_relative)
+        except tf2_ros.LookupException as ex:
+            logger.warning(ex, throttle_duration_sec=10.0)
+            return
+        except tf2_ros.ExtrapolationException as ex:
+            logger.warning(ex, throttle_duration_sec=10.0)
+            return
 
 
-class GoalMarker(RobocupInteractiveMarker):
-    def __init__(self, server, node, cam_info):
+class GoalMarker(AbstractRobocupInteractiveMarker):
+
+    def __init__(self, server, tf_buffer, node):
         self.node = node
-        self.cam_info = cam_info
-        self.marker_name = "goal"
-        self.interaction_mode = InteractiveMarkerControl.MOVE_ROTATE
-        self.absolute_publisher = self.node.create_publisher(PoseWithCertaintyArray, "goal_absolute", qos_profile=1)
-        self.relative_publisher = self.node.create_publisher(PoseWithCertaintyArray, "goal_relative", qos_profile=1)
-        self.relative_posts_publisher = self.node.create_publisher(PoseWithCertaintyArray, "goal_posts_relative", qos_profile=1)
-        super(GoalMarker, self).__init__(server)
+        self.absolute_publisher = self.node.create_publisher(
+            PoseWithCertaintyArray, "goal_absolute", qos_profile=1)
+        self.relative_publisher = self.node.create_publisher(
+            PoseWithCertaintyArray, "goal_relative", qos_profile=1)
+        self.relative_posts_publisher = self.node.create_publisher(
+            PoseWithCertaintyArray, "goal_posts_relative", qos_profile=1)
+        super().__init__(server, tf_buffer, "goal",
+                         InteractiveMarkerControl.MOVE_ROTATE)
         self.menu_handler = MenuHandler()
         self.pose.position.x = 3.0
 
     def make_individual_markers(self, msg):
-        lpost = Marker()
-        lpost.type = Marker.CYLINDER
-        lpost.scale = Vector3(POST_DIAMETER, POST_DIAMETER, GOAL_HEIGHT)
-        lpost.color.r = 1.0
-        lpost.color.g = 1.0
-        lpost.color.b = 1.0
-        lpost.color.a = 0.4
-        lpost.pose.position = Point(0, GOAL_WIDTH / 2, GOAL_HEIGHT / 2)
+        left_post = Marker()
+        left_post.type = Marker.CYLINDER
+        left_post.scale = Vector3(x=POST_DIAMETER,
+                                  y=POST_DIAMETER,
+                                  z=GOAL_HEIGHT)
+        left_post.color.r = 1.0
+        left_post.color.g = 1.0
+        left_post.color.b = 1.0
+        left_post.color.a = 0.4
+        left_post.pose.position = Point(x=0.0,
+                                        y=GOAL_WIDTH / 2,
+                                        z=GOAL_HEIGHT / 2)
 
-        rpost = Marker()
-        rpost.type = Marker.CYLINDER
-        rpost.scale = Vector3(POST_DIAMETER, POST_DIAMETER, GOAL_HEIGHT)
-        rpost.color.r = 1.0
-        rpost.color.g = 1.0
-        rpost.color.b = 1.0
-        rpost.color.a = 0.4
-        rpost.pose.position = Point(0, - GOAL_WIDTH / 2, GOAL_HEIGHT / 2)
+        right_post = Marker()
+        right_post.type = Marker.CYLINDER
+        right_post.scale = Vector3(x=POST_DIAMETER,
+                                   y=POST_DIAMETER,
+                                   z=GOAL_HEIGHT)
+        right_post.color.r = 1.0
+        right_post.color.g = 1.0
+        right_post.color.b = 1.0
+        right_post.color.a = 0.4
+        right_post.pose.position = Point(x=0.0,
+                                         y=-GOAL_WIDTH / 2,
+                                         z=GOAL_HEIGHT / 2)
 
         bar = Marker()
         bar.type = Marker.CYLINDER
-        bar.scale = Vector3(POST_DIAMETER, POST_DIAMETER, GOAL_WIDTH)
+        bar.scale = Vector3(x=POST_DIAMETER, y=POST_DIAMETER, z=GOAL_WIDTH)
         bar.color.r = 1.0
         bar.color.g = 1.0
         bar.color.b = 1.0
         bar.color.a = 0.4
-        bar.pose.position = Point(0, 0, GOAL_HEIGHT)
-        bar.pose.orientation = Quaternion(math.sqrt(2) / 2, 0, 0, math.sqrt(2) / 2)
+        bar.pose.position = Point(x=0.0, y=0.0, z=GOAL_HEIGHT)
+        bar.pose.orientation = Quaternion(x=math.sqrt(2) / 2,
+                                          y=0.0,
+                                          z=0.0,
+                                          w=math.sqrt(2) / 2)
+        return (left_post, right_post, bar)
 
-        return (lpost, rpost, bar)
-
-    def publish_marker(self, e):
+    def publish_marker(self):
         # construct GoalRelative message
         goal_absolute = PoseWithCertaintyArray()
         goal_absolute.header.stamp = self.node.get_clock().now().to_msg()
         goal_absolute.header.frame_id = "map"
         # calculate the positions of the right and the left post
-        orientation = euler_from_quaternion((self.pose.orientation.x, self.pose.orientation.y,
-                                             self.pose.orientation.z, self.pose.orientation.w))
+        orientation = euler_from_quaternion(
+            (self.pose.orientation.x, self.pose.orientation.y,
+             self.pose.orientation.z, self.pose.orientation.w))
         angle = orientation[2]
         left_post = PoseWithCertainty()
-        left_post.pose.pose.position.x = self.pose.position.x - math.sin(angle) * GOAL_WIDTH / 2
-        left_post.pose.pose.position.y = self.pose.position.y + math.cos(angle) * GOAL_WIDTH / 2
+        left_post.pose.pose.position.x = self.pose.position.x - math.sin(
+            angle) * GOAL_WIDTH / 2
+        left_post.pose.pose.position.y = self.pose.position.y + math.cos(
+            angle) * GOAL_WIDTH / 2
         left_post.confidence = 1.0
 
         right_post = PoseWithCertainty()
-        right_post.pose.pose.position.x = self.pose.position.x + math.sin(angle) * GOAL_WIDTH / 2
-        right_post.pose.pose.position.y = self.pose.position.y - math.cos(angle) * GOAL_WIDTH / 2
+        right_post.pose.pose.position.x = self.pose.position.x + math.sin(
+            angle) * GOAL_WIDTH / 2
+        right_post.pose.pose.position.y = self.pose.position.y - math.cos(
+            angle) * GOAL_WIDTH / 2
         right_post.confidence = 1.0
-
 
         goal_absolute.poses.append(left_post)
         goal_absolute.poses.append(right_post)
@@ -265,124 +312,143 @@ class GoalMarker(RobocupInteractiveMarker):
             self.absolute_publisher.publish(goal_absolute)
 
         # check if goal is also visible for the robot and publish on relative topic if this is the case
-        # only works if camera info is provided
-        if self.cam_info:
-            try:
-                goal_relative = PoseWithCertaintyArray()
-                goal_relative.header.stamp = self.node.get_clock().now().to_msg()
-                goal_relative.header.frame_id = "base_footprint"
+        try:
+            goal_relative = PoseWithCertaintyArray()
+            goal_relative.header.stamp = self.node.get_clock().now().to_msg()
+            goal_relative.header.frame_id = "base_footprint"
 
-                goal_left_point_stamped = PointStamped()
-                goal_left_point_stamped.header.stamp = goal_relative.header.stamp
-                goal_left_point_stamped.header.frame_id = "map"
-                goal_left_point_stamped.point = left_post.pose.pose.position
-                left_post_in_camera_optical_frame = tf_buffer.transform(goal_left_point_stamped,
-                                                                        self.cam_info["frame_id"],
-                                                                        timeout=Duration(seconds=0.5))
+            goal_left_point_stamped = PointStamped()
+            goal_left_point_stamped.header.stamp = goal_relative.header.stamp
+            goal_left_point_stamped.header.frame_id = "map"
+            goal_left_point_stamped.point = left_post.pose.pose.position
+            left_post_in_camera_optical_frame = self.tf_buffer.transform(
+                goal_left_point_stamped,
+                CAMERA_INFO["frame_id"],
+                timeout=Duration(nanoseconds=500_000_000))  # Half a second
 
-                lpost_visible = False
-                rpost_visible = False
+            left_post_visible = False
+            right_post_visible = False
 
-                if left_post_in_camera_optical_frame.point.z >= 0:
-                    p = [left_post_in_camera_optical_frame.point.x, left_post_in_camera_optical_frame.point.y,
-                         left_post_in_camera_optical_frame.point.z]
-                    k = np.reshape(self.cam_info["K"], (3, 3))
-                    p_pixel = np.matmul(k, p)
-                    p_pixel = p_pixel * (1 / p_pixel[2])
+            if left_post_in_camera_optical_frame.point.z >= 0:
+                point = [
+                    left_post_in_camera_optical_frame.point.x,
+                    left_post_in_camera_optical_frame.point.y,
+                    left_post_in_camera_optical_frame.point.z
+                ]
+                k = np.reshape(CAMERA_INFO["K"], (3, 3))
+                point_pixel = np.matmul(k, point)
+                point_pixel = point_pixel * (1 / point_pixel[2])
 
-                    if 0 < p_pixel[0] <= self.cam_info["width"] and 0 < p_pixel[1] <= self.cam_info["height"]:
-                        left_post = PoseWithCertainty()
-                        left_post.pose.pose.position = tf_buffer.transform(left_post_in_camera_optical_frame,
-                                                                           "base_footprint",
-                                                                           timeout=Duration(seconds=0.5)).point
-                        goal_relative.poses.append(left_post)
-                        lpost_visible = True
+                if 0 < point_pixel[0] <= CAMERA_INFO[
+                        "width"] and 0 < point_pixel[1] <= CAMERA_INFO[
+                            "height"]:
+                    left_post = PoseWithCertainty()
+                    left_post.pose.pose.position = self.tf_buffer.transform(
+                        left_post_in_camera_optical_frame,
+                        "base_footprint",
+                        timeout=Duration(
+                            nanoseconds=500_000_000)).point  # Half a second
+                    goal_relative.poses.append(left_post)
+                    left_post_visible = True
 
-                goal_right_point_stamped = PointStamped()
-                goal_right_point_stamped.header.stamp = goal_relative.header.stamp
-                goal_right_point_stamped.header.frame_id = "map"
-                goal_right_point_stamped.point = right_post.pose.pose.position
-                right_post_in_camera_optical_frame = tf_buffer.transform(goal_right_point_stamped,
-                                                                         self.cam_info["frame_id"],
-                                                                         timeout=Duration(seconds=0.5))
-                if right_post_in_camera_optical_frame.point.z >= 0:
-                    p = [right_post_in_camera_optical_frame.point.x, right_post_in_camera_optical_frame.point.y,
-                         right_post_in_camera_optical_frame.point.z]
-                    k = np.reshape(self.cam_info["K"], (3, 3))
-                    p_pixel = np.matmul(k, p)
-                    p_pixel = p_pixel * (1 / p_pixel[2])
+            goal_right_point_stamped = PointStamped()
+            goal_right_point_stamped.header.stamp = goal_relative.header.stamp
+            goal_right_point_stamped.header.frame_id = "map"
+            goal_right_point_stamped.point = right_post.pose.pose.position
+            right_post_in_camera_optical_frame = self.tf_buffer.transform(
+                goal_right_point_stamped,
+                CAMERA_INFO["frame_id"],
+                timeout=Duration(nanoseconds=500_000_000))  # Half a second
+            if right_post_in_camera_optical_frame.point.z >= 0:
+                point = [
+                    right_post_in_camera_optical_frame.point.x,
+                    right_post_in_camera_optical_frame.point.y,
+                    right_post_in_camera_optical_frame.point.z
+                ]
+                k = np.reshape(CAMERA_INFO["K"], (3, 3))
+                point_pixel = np.matmul(k, point)
+                point_pixel = point_pixel * (1 / point_pixel[2])
 
-                    if 0 < p_pixel[0] <= self.cam_info["width"] and 0 < p_pixel[1] <= self.cam_info["height"]:
-                        right_post = PoseWithCertainty()
-                        right_post.pose.pose.position = tf_buffer.transform(right_post_in_camera_optical_frame,
-                                                                            "base_footprint",
-                                                                            timeout=Duration(seconds=0.5)).point
-                        goal_relative.poses.append(right_post)
-                        rpost_visible = True
+                if 0 < point_pixel[0] <= (
+                        CAMERA_INFO["width"]
+                        and 0 < point_pixel[1] <= CAMERA_INFO["height"]):
+                    right_post = PoseWithCertainty()
+                    right_post.pose.pose.position = self.tf_buffer.transform(
+                        right_post_in_camera_optical_frame,
+                        "base_footprint",
+                        timeout=Duration(
+                            nanoseconds=500_000_000)).point  # Half a second
+                    goal_relative.poses.append(right_post)
+                    right_post_visible = True
 
-                # publish goal relative msg
-                if rpost_visible or lpost_visible:
-                    self.relative_publisher.publish(goal_relative)
-                    self.relative_posts_publisher.publish(goal_relative)
+            # publish goal relative msg
+            if right_post_visible or left_post_visible:
+                self.relative_publisher.publish(goal_relative)
+                self.relative_posts_publisher.publish(goal_relative)
 
-            except tf2_ros.LookupException as ex:
-                logger.warning(ex, throttle_duration_sec=10.0)
-                return None
-            except tf2_ros.ExtrapolationException as ex:
-                logger.warning(ex, throttle_duration_sec=10.0)
-                return None
+        except tf2_ros.LookupException as ex:
+            logger.warning(ex, throttle_duration_sec=10.0)
+            return
+        except tf2_ros.ExtrapolationException as ex:
+            logger.warning(ex, throttle_duration_sec=10.0)
+            return
 
 
-class ObstacleMarker(RobocupInteractiveMarker):
-    def __init__(self, server, node, cam_info, name):
+class ObstacleMarker(AbstractRobocupInteractiveMarker):
+
+    def __init__(self, server, tf_buffer, node, name):
         self.node = node
-        self.cam_info = cam_info
-        self.marker_name = name
         self.type = 0  # unknown
         self.player_number = 0
         self.confidence = 1.0
-        self.interaction_mode = InteractiveMarkerControl.MOVE_PLANE
-        super(ObstacleMarker, self).__init__(server)
+        super().__init__(server, tf_buffer, name,
+                         InteractiveMarkerControl.MOVE_PLANE)
         sub_menu_handle = self.menu_handler.insert("Color")
-        h_mode_last = self.menu_handler.insert("red", parent=sub_menu_handle, callback=self.colorCb)
-        h_mode_last = self.menu_handler.insert("blue", parent=sub_menu_handle, callback=self.colorCb)
-        h_mode_last = self.menu_handler.insert("unknown", parent=sub_menu_handle, callback=self.colorCb)
+        h_mode_last = self.menu_handler.insert("red",
+                                               parent=sub_menu_handle,
+                                               callback=self.color_callback)
+        h_mode_last = self.menu_handler.insert("blue",
+                                               parent=sub_menu_handle,
+                                               callback=self.color_callback)
+        h_mode_last = self.menu_handler.insert("unknown",
+                                               parent=sub_menu_handle,
+                                               callback=self.color_callback)
         self.menu_handler.setCheckState(h_mode_last, MenuHandler.CHECKED)
         self.menu_handler.apply(self.server, self.marker_name)
         self.pose.position.x = 2.0
 
-    def colorCb(self, feedback):
+    def color_callback(self, feedback):
         item = feedback.menu_entry_id
         if self.menu_handler.getCheckState(item) == MenuHandler.CHECKED:
-            # unchecking something should lead to unknown color
+            # Unchecking something should lead to unknown color
             self.type = 0
             self.menu_handler.setCheckState(item, MenuHandler.UNCHECKED)
             self.menu_handler.setCheckState(5, MenuHandler.CHECKED)
-            self.int_marker.controls[1].markers[0].type.r = 0.0
-            self.int_marker.controls[1].markers[0].type.g = 0.0
-            self.int_marker.controls[1].markers[0].type.b = 0.0
+            self.interactive_marker.controls[1].markers[0].type.r = 0.0
+            self.interactive_marker.controls[1].markers[0].type.g = 0.0
+            self.interactive_marker.controls[1].markers[0].type.b = 0.0
         else:
             if item == 3:
                 self.type = 2
                 self.menu_handler.setCheckState(4, MenuHandler.UNCHECKED)
                 self.menu_handler.setCheckState(5, MenuHandler.UNCHECKED)
-                self.int_marker.controls[1].markers[0].type.r = 1.0
-                self.int_marker.controls[1].markers[0].type.g = 0.0
-                self.int_marker.controls[1].markers[0].type.b = 0.0
+                self.interactive_marker.controls[1].markers[0].type.r = 1.0
+                self.interactive_marker.controls[1].markers[0].type.g = 0.0
+                self.interactive_marker.controls[1].markers[0].type.b = 0.0
             elif item == 4:
                 self.type = 3
                 self.menu_handler.setCheckState(3, MenuHandler.UNCHECKED)
                 self.menu_handler.setCheckState(5, MenuHandler.UNCHECKED)
-                self.int_marker.controls[1].markers[0].type.r = 0.0
-                self.int_marker.controls[1].markers[0].type.g = 0.0
-                self.int_marker.controls[1].markers[0].type.b = 1.0
+                self.interactive_marker.controls[1].markers[0].type.r = 0.0
+                self.interactive_marker.controls[1].markers[0].type.g = 0.0
+                self.interactive_marker.controls[1].markers[0].type.b = 1.0
             elif item == 5:
                 self.type = 0
                 self.menu_handler.setCheckState(3, MenuHandler.UNCHECKED)
                 self.menu_handler.setCheckState(4, MenuHandler.UNCHECKED)
-                self.int_marker.controls[1].markers[0].type.r = 0.0
-                self.int_marker.controls[1].markers[0].type.g = 0.0
-                self.int_marker.controls[1].markers[0].type.b = 0.0
+                self.interactive_marker.controls[1].markers[0].type.r = 0.0
+                self.interactive_marker.controls[1].markers[0].type.g = 0.0
+                self.interactive_marker.controls[1].markers[0].type.b = 0.0
             self.menu_handler.setCheckState(item, MenuHandler.CHECKED)
 
         self.menu_handler.reApply(self.server)
@@ -392,14 +458,15 @@ class ObstacleMarker(RobocupInteractiveMarker):
         marker = Marker()
 
         marker.type = Marker.CYLINDER
-        marker.scale = Vector3(OBSTACLE_DIAMETER, OBSTACLE_DIAMETER, OBSTACLE_HEIGHT)
+        marker.scale = Vector3(x=OBSTACLE_DIAMETER,
+                               y=OBSTACLE_DIAMETER,
+                               z=OBSTACLE_HEIGHT)
         marker.color.r = 0.0
         marker.color.g = 0.0
         marker.color.b = 0.0
         marker.color.a = 0.4
-        marker.pose.position = Point(0, 0, OBSTACLE_HEIGHT / 2)
-
-        return (marker,)
+        marker.pose.position = Point(x=0.0, y=0.0, z=OBSTACLE_HEIGHT / 2)
+        return (marker, )
 
     def get_absolute_message(self):
         msg = ObstacleRelative()
@@ -408,63 +475,71 @@ class ObstacleMarker(RobocupInteractiveMarker):
         msg.width = OBSTACLE_DIAMETER
         msg.type = self.type
         msg.pose.confidence = self.confidence
-        msg.playerNumber = self.player_number
+        msg.player_number = self.player_number
         return msg
 
     def get_relative_msg(self):
         # check if obstacle is also visible for the robot and only then return
-        if self.cam_info:
-            try:
-                obstacle_point_stamped = PointStamped()
-                obstacle_point_stamped.header.stamp = self.node.get_clock().now().to_msg()
-                obstacle_point_stamped.header.frame_id = "map"
-                obstacle_point_stamped.point = self.pose.position
-                obstacle_in_camera_optical_frame = tf_buffer.transform(obstacle_point_stamped,
-                                                                       self.cam_info["frame_id"],
-                                                                       timeout=Duration(seconds=0.5))
-                if obstacle_in_camera_optical_frame.point.z >= 0:
-                    p = [obstacle_in_camera_optical_frame.point.x, obstacle_in_camera_optical_frame.point.y,
-                         obstacle_in_camera_optical_frame.point.z]
-                    k = np.reshape(self.cam_info["K"], (3, 3))
-                    p_pixel = np.matmul(k, p)
-                    p_pixel = p_pixel * (1 / p_pixel[2])
+        try:
+            obstacle_point_stamped = PointStamped()
+            obstacle_point_stamped.header.stamp = self.node.get_clock().now(
+            ).to_msg()
+            obstacle_point_stamped.header.frame_id = "map"
+            obstacle_point_stamped.point = self.pose.position
+            obstacle_in_camera_optical_frame = self.tf_buffer.transform(
+                obstacle_point_stamped,
+                CAMERA_INFO["frame_id"],
+                timeout=Duration(nanoseconds=500_000_000))  # Half a second
+            if obstacle_in_camera_optical_frame.point.z >= 0:
+                point = [
+                    obstacle_in_camera_optical_frame.point.x,
+                    obstacle_in_camera_optical_frame.point.y,
+                    obstacle_in_camera_optical_frame.point.z
+                ]
+                k = np.reshape(CAMERA_INFO["K"], (3, 3))
+                point_pixel = np.matmul(k, point)
+                point_pixel = point_pixel * (1 / point_pixel[2])
 
-                    # make sure that the transformed pixel is inside the resolution and positive.
-                    if 0 < p_pixel[0] <= self.cam_info["width"] and 0 < p_pixel[1] <= self.cam_info["height"]:
-                        obstacle_relative = ObstacleRelative()
-                        ball_in_footprint_frame = tf_buffer.transform(obstacle_in_camera_optical_frame,
-                                                                      "base_footprint",
-                                                                      timeout=Duration(seconds=0.5))
-                        obstacle_relative.pose.pose.pose.position = ball_in_footprint_frame.point
-                        obstacle_relative.pose.confidence = self.confidence
-                        obstacle_relative.playerNumber = self.player_number
-                        obstacle_relative.type = self.type
-                        return obstacle_relative
-            except tf2_ros.LookupException as ex:
-                logger.warning(ex, throttle_duration_sec=10.0)
-                return None
-            except tf2_ros.ExtrapolationException as ex:
-                logger.warning(ex, throttle_duration_sec=10.0)
-                return None
-
-        return None
+                # make sure that the transformed pixel is inside the resolution and positive.
+                if (0 < point_pixel[0] <= CAMERA_INFO["width"]
+                        and 0 < point_pixel[1] <= CAMERA_INFO["height"]):
+                    obstacle_relative = ObstacleRelative()
+                    ball_in_footprint_frame = self.tf_buffer.transform(
+                        obstacle_in_camera_optical_frame,
+                        "base_footprint",
+                        timeout=Duration(
+                            nanoseconds=500_000_000))  # Half a second
+                    obstacle_relative.pose.pose.pose.position = ball_in_footprint_frame.point
+                    obstacle_relative.pose.confidence = self.confidence
+                    obstacle_relative.player_number = self.player_number
+                    obstacle_relative.type = self.type
+                    return obstacle_relative
+        except tf2_ros.LookupException as ex:
+            logger.warning(ex, throttle_duration_sec=10.0)
+            return
+        except tf2_ros.ExtrapolationException as ex:
+            logger.warning(ex, throttle_duration_sec=10.0)
+            return
 
 
 class ObstacleMarkerArray:
-    def __init__(self, server, node, cam_info):
+
+    def __init__(self, server, tf_buffer, node):
         self.node = node
-        self.cam_info = cam_info
-        self.absolute_publisher = self.node.create_publisher(ObstacleRelativeArray, "obstacles_absolute", qos_profile=1)
-        self.relative_publisher = self.node.create_publisher(ObstacleRelativeArray, "obstacles_relative", qos_profile=1)
+        self.absolute_publisher = self.node.create_publisher(
+            ObstacleRelativeArray, "obstacles_absolute", qos_profile=1)
+        self.relative_publisher = self.node.create_publisher(
+            ObstacleRelativeArray, "obstacles_relative", qos_profile=1)
         self.obstacles = []
         for i in range(0, OBSTACLE_NUMBER):
-            self.obstacles.append(ObstacleMarker(server, cam_info, "obstacle_" + str(i)))
+            self.obstacles.append(
+                ObstacleMarker(server, tf_buffer, node, f"obstacle_{i}"))
 
-    def publish_marker(self, e):
-        absolut_msg = ObstacleRelativeArray()
-        absolut_msg.header.stamp = self.node.get_clock().now().to_msg()
-        absolut_msg.header.frame_id = "map"
-        absolut_obstacles = []
+    def publish_marker(self):
+        absolute_msg = ObstacleRelativeArray()
+        absolute_msg.header.stamp = self.node.get_clock().now().to_msg()
+        absolute_msg.header.frame_id = "map"
+        absolute_obstacles = []
         relative_msg = ObstacleRelativeArray()
         relative_msg.header.stamp = self.node.get_clock().now().to_msg()
         relative_msg.header.frame_id = "base_footprint"
@@ -472,36 +547,33 @@ class ObstacleMarkerArray:
 
         for obstacle in self.obstacles:
             # always publish on absolute
-            absolut_obstacles.append(obstacle.get_absolute_message())
+            absolute_obstacles.append(obstacle.get_absolute_message())
 
             rel_msg = obstacle.get_relative_msg()
             if rel_msg:
                 relative_obstacles.append(rel_msg)
 
-        absolut_msg.obstacles = absolut_obstacles
+        absolute_msg.obstacles = absolute_obstacles
         relative_msg.obstacles = relative_obstacles
 
-        self.absolute_publisher.publish(absolut_msg)
+        self.absolute_publisher.publish(absolute_msg)
         self.relative_publisher.publish(relative_msg)
 
 
 def main(args=None):
     rclpy.init(args=args)
-    node = RobocupInteractiveMarker()
+    node = rclpy.create_node(NODE_NAME)
+    server = InteractiveMarkerServer(node, "")
+    tf_buffer = tf2_ros.Buffer(Duration(seconds=30))
+    tf_listener = tf2_ros.TransformListener(tf_buffer, node)  # pylint: disable=unused-variable
 
-    # get camera info from config
-    cam_info = node.declare_parameter('camera_info', None).value
-    if not cam_info:
-        logger.warning("No camera info provided from parameter server. Will only publish absolute messages!")
-    # retrieve InteractiveMarkerServer and setup subscribers and publishers
-    server = InteractiveMarkerServer("basic_controls")
-    ball = BallMarker(server, node, cam_info)
-    goal = GoalMarker(server, node, cam_info)
-    obstacles = ObstacleMarkerArray(server, node, cam_info)
+    ball = BallMarker(server, tf_buffer, node)
+    goal = GoalMarker(server, tf_buffer, node)
+    obstacles = ObstacleMarkerArray(server, tf_buffer, node)
 
     server.applyChanges()
 
-    # create a timer to update the published ball transform
+    # Create a timer to update the published ball transform
     node.create_timer(0.05, ball.publish_marker)
     node.create_timer(0.05, goal.publish_marker)
     node.create_timer(0.05, obstacles.publish_marker)
