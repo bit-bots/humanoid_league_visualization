@@ -182,8 +182,7 @@ class BallMarker(AbstractRobocupInteractiveMarker):
         # check if ball is also visible for the robot and publish on relative topic if this is the case
         try:
             ball_point_stamped = PointStamped()
-            ball_point_stamped.header.stamp = self.node.get_clock().now(
-            ).to_msg()
+            ball_point_stamped.header.stamp = self.node.get_clock().now().to_msg()
             ball_point_stamped.header.frame_id = "map"
             ball_point_stamped.point = ball_absolute.pose.pose.position
             ball_in_camera_optical_frame = self.tf_buffer.transform(
@@ -216,11 +215,8 @@ class BallMarker(AbstractRobocupInteractiveMarker):
                     balls_relative.header = ball_in_footprint_frame.header
                     balls_relative.poses = [ball_relative]
                     self.relative_publisher.publish(balls_relative)
-        except tf2_ros.LookupException as ex:
-            logger.warning(ex, throttle_duration_sec=10.0)
-            return
-        except tf2_ros.ExtrapolationException as ex:
-            logger.warning(ex, throttle_duration_sec=10.0)
+        except (tf2_ros.LookupException, tf2_ros.ExtrapolationException, tf2_ros.ConnectivityException) as ex:
+            logger.warning(str(ex), throttle_duration_sec=10.0)
             return
 
 
@@ -386,11 +382,8 @@ class GoalMarker(AbstractRobocupInteractiveMarker):
                 self.relative_publisher.publish(goal_relative)
                 self.relative_posts_publisher.publish(goal_relative)
 
-        except tf2_ros.LookupException as ex:
-            logger.warning(ex, throttle_duration_sec=10.0)
-            return
-        except tf2_ros.ExtrapolationException as ex:
-            logger.warning(ex, throttle_duration_sec=10.0)
+        except (tf2_ros.LookupException, tf2_ros.ExtrapolationException, tf2_ros.ConnectivityException) as ex:
+            logger.warning(str(ex), throttle_duration_sec=10.0)
             return
 
 
@@ -514,11 +507,8 @@ class ObstacleMarker(AbstractRobocupInteractiveMarker):
                     obstacle_relative.player_number = self.player_number
                     obstacle_relative.type = self.type
                     return obstacle_relative
-        except tf2_ros.LookupException as ex:
-            logger.warning(ex, throttle_duration_sec=10.0)
-            return
-        except tf2_ros.ExtrapolationException as ex:
-            logger.warning(ex, throttle_duration_sec=10.0)
+        except (tf2_ros.LookupException, tf2_ros.ExtrapolationException, tf2_ros.ConnectivityException) as ex:
+            logger.warning(str(ex), throttle_duration_sec=10.0)
             return
 
 

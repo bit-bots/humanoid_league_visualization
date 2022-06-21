@@ -2,6 +2,6 @@
     <node name="rviz2" pkg="rviz2" exec="rviz2" output="screen">
         <!--args="-d $(find-pkg-share humanoid_league_interactive_m arker)/config/interactive_marker.rviz">-->
     </node>
-    <node name="interactive_marker" pkg="humanoid_league_interactive_marker" exec="interactive_marker" output="screen">
+    <node pkg="humanoid_league_interactive_marker" exec="interactive_marker" output="screen">
     </node>
 </launch>
