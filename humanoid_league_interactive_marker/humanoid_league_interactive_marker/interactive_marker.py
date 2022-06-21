@@ -38,6 +38,7 @@ import tf2_ros
 import rclpy
 from rclpy import logging
 from rclpy.duration import Duration
+from rclpy.executors import MultiThreadedExecutor
 
 from interactive_markers.interactive_marker_server import InteractiveMarkerServer
 from interactive_markers.menu_handler import MenuHandler
@@ -205,8 +206,7 @@ class BallMarker(AbstractRobocupInteractiveMarker):
                     ball_in_footprint_frame = self.tf_buffer.transform(
                         ball_in_camera_optical_frame,
                         "base_footprint",
-                        timeout=Duration(
-                            nanoseconds=500_000_000))  # Half a second
+                        timeout=Duration(nanoseconds=500_000_000))  # Half a second
                     ball_relative = PoseWithCertainty()
                     ball_relative.pose.pose.position = ball_in_footprint_frame.point
                     ball_relative.confidence = 1.0
@@ -553,7 +553,9 @@ class ObstacleMarkerArray:
 def main(args=None):
     rclpy.init(args=args)
     node = rclpy.create_node(NODE_NAME)
-    server = InteractiveMarkerServer(node, "")
+    multi_executor = MultiThreadedExecutor()
+    multi_executor.add_node(node)
+    server = InteractiveMarkerServer(node, "robocup")
     tf_buffer = tf2_ros.Buffer(Duration(seconds=30))
     tf_listener = tf2_ros.TransformListener(tf_buffer, node)  # pylint: disable=unused-variable
 
@@ -569,7 +571,7 @@ def main(args=None):
     node.create_timer(0.05, obstacles.publish_marker)
 
     try:
-        rclpy.spin(node)
+        multi_executor.spin()
     except KeyboardInterrupt:
         pass
     node.destroy_node()
