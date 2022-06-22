@@ -233,7 +233,6 @@ class GoalMarker(AbstractRobocupInteractiveMarker):
             PoseWithCertaintyArray, "goal_posts_relative", qos_profile=1)
         super().__init__(server, tf_buffer, "goal",
                          InteractiveMarkerControl.MOVE_ROTATE)
-        self.menu_handler = MenuHandler()
         self.pose.position.x = 3.0
 
     def make_individual_markers(self, msg):
@@ -567,9 +566,9 @@ def main(args=None):
     server.applyChanges()
 
     # Create a timer to update the published ball transform
-    node.create_timer(0.1, ball.publish_marker)
-    node.create_timer(0.1, goal.publish_marker)
-    node.create_timer(0.1, obstacles.publish_marker)
+    node.create_timer(1.0, ball.publish_marker)
+    node.create_timer(1.0, goal.publish_marker)
+    node.create_timer(1.0, obstacles.publish_marker)
 
     try:
         multi_executor.spin()
