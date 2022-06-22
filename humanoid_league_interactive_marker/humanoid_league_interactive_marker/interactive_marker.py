@@ -53,10 +53,11 @@ BALL_DIAMETER = 0.13
 GOAL_WIDTH = 1.5
 GOAL_HEIGHT = 1.1
 POST_DIAMETER = 0.1
-OBSTACLE_NUMBER = 4
+OBSTACLE_NUMBER = 1
 OBSTACLE_HEIGHT = 0.8
 OBSTACLE_DIAMETER = 0.2
 
+#todo this should not be hardcoded
 CAMERA_INFO = {  # Updated to jacks camera info from wide angle camera
     'frame_id': "camera_optical_frame",
     'height': 1536,
@@ -553,22 +554,22 @@ class ObstacleMarkerArray:
 def main(args=None):
     rclpy.init(args=args)
     node = rclpy.create_node(NODE_NAME)
+    server = InteractiveMarkerServer(node, "robocup")
     multi_executor = MultiThreadedExecutor()
     multi_executor.add_node(node)
-    server = InteractiveMarkerServer(node, "robocup")
     tf_buffer = tf2_ros.Buffer(Duration(seconds=30))
     tf_listener = tf2_ros.TransformListener(tf_buffer, node)  # pylint: disable=unused-variable
 
     ball = BallMarker(server, tf_buffer, node)
     goal = GoalMarker(server, tf_buffer, node)
     obstacles = ObstacleMarkerArray(server, tf_buffer, node)
-
+    
     server.applyChanges()
 
     # Create a timer to update the published ball transform
-    node.create_timer(0.05, ball.publish_marker)
-    node.create_timer(0.05, goal.publish_marker)
-    node.create_timer(0.05, obstacles.publish_marker)
+    node.create_timer(0.1, ball.publish_marker)
+    node.create_timer(0.1, goal.publish_marker)
+    node.create_timer(0.1, obstacles.publish_marker)
 
     try:
         multi_executor.spin()
