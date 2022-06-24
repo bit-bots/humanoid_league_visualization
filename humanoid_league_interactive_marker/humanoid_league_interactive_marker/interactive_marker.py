@@ -38,6 +38,7 @@ import tf2_ros
 import rclpy
 from rclpy import logging
 from rclpy.duration import Duration
+from rclpy.executors import MultiThreadedExecutor
 
 from interactive_markers.interactive_marker_server import InteractiveMarkerServer
 from interactive_markers.menu_handler import MenuHandler
@@ -52,10 +53,11 @@ BALL_DIAMETER = 0.13
 GOAL_WIDTH = 1.5
 GOAL_HEIGHT = 1.1
 POST_DIAMETER = 0.1
-OBSTACLE_NUMBER = 4
+OBSTACLE_NUMBER = 1
 OBSTACLE_HEIGHT = 0.8
 OBSTACLE_DIAMETER = 0.2
 
+#todo this should not be hardcoded
 CAMERA_INFO = {  # Updated to jacks camera info from wide angle camera
     'frame_id': "camera_optical_frame",
     'height': 1536,
@@ -182,8 +184,7 @@ class BallMarker(AbstractRobocupInteractiveMarker):
         # check if ball is also visible for the robot and publish on relative topic if this is the case
         try:
             ball_point_stamped = PointStamped()
-            ball_point_stamped.header.stamp = self.node.get_clock().now(
-            ).to_msg()
+            ball_point_stamped.header.stamp = self.node.get_clock().now().to_msg()
             ball_point_stamped.header.frame_id = "map"
             ball_point_stamped.point = ball_absolute.pose.pose.position
             ball_in_camera_optical_frame = self.tf_buffer.transform(
@@ -206,8 +207,7 @@ class BallMarker(AbstractRobocupInteractiveMarker):
                     ball_in_footprint_frame = self.tf_buffer.transform(
                         ball_in_camera_optical_frame,
                         "base_footprint",
-                        timeout=Duration(
-                            nanoseconds=500_000_000))  # Half a second
+                        timeout=Duration(nanoseconds=500_000_000))  # Half a second
                     ball_relative = PoseWithCertainty()
                     ball_relative.pose.pose.position = ball_in_footprint_frame.point
                     ball_relative.confidence = 1.0
@@ -216,11 +216,8 @@ class BallMarker(AbstractRobocupInteractiveMarker):
                     balls_relative.header = ball_in_footprint_frame.header
                     balls_relative.poses = [ball_relative]
                     self.relative_publisher.publish(balls_relative)
-        except tf2_ros.LookupException as ex:
-            logger.warning(ex, throttle_duration_sec=10.0)
-            return
-        except tf2_ros.ExtrapolationException as ex:
-            logger.warning(ex, throttle_duration_sec=10.0)
+        except (tf2_ros.LookupException, tf2_ros.ExtrapolationException, tf2_ros.ConnectivityException) as ex:
+            logger.warning(str(ex), throttle_duration_sec=10.0)
             return
 
 
@@ -236,7 +233,6 @@ class GoalMarker(AbstractRobocupInteractiveMarker):
             PoseWithCertaintyArray, "goal_posts_relative", qos_profile=1)
         super().__init__(server, tf_buffer, "goal",
                          InteractiveMarkerControl.MOVE_ROTATE)
-        self.menu_handler = MenuHandler()
         self.pose.position.x = 3.0
 
     def make_individual_markers(self, msg):
@@ -386,11 +382,8 @@ class GoalMarker(AbstractRobocupInteractiveMarker):
                 self.relative_publisher.publish(goal_relative)
                 self.relative_posts_publisher.publish(goal_relative)
 
-        except tf2_ros.LookupException as ex:
-            logger.warning(ex, throttle_duration_sec=10.0)
-            return
-        except tf2_ros.ExtrapolationException as ex:
-            logger.warning(ex, throttle_duration_sec=10.0)
+        except (tf2_ros.LookupException, tf2_ros.ExtrapolationException, tf2_ros.ConnectivityException) as ex:
+            logger.warning(str(ex), throttle_duration_sec=10.0)
             return
 
 
@@ -514,11 +507,8 @@ class ObstacleMarker(AbstractRobocupInteractiveMarker):
                     obstacle_relative.player_number = self.player_number
                     obstacle_relative.type = self.type
                     return obstacle_relative
-        except tf2_ros.LookupException as ex:
-            logger.warning(ex, throttle_duration_sec=10.0)
-            return
-        except tf2_ros.ExtrapolationException as ex:
-            logger.warning(ex, throttle_duration_sec=10.0)
+        except (tf2_ros.LookupException, tf2_ros.ExtrapolationException, tf2_ros.ConnectivityException) as ex:
+            logger.warning(str(ex), throttle_duration_sec=10.0)
             return
 
 
@@ -563,23 +553,25 @@ class ObstacleMarkerArray:
 def main(args=None):
     rclpy.init(args=args)
     node = rclpy.create_node(NODE_NAME)
-    server = InteractiveMarkerServer(node, "")
+    server = InteractiveMarkerServer(node, "robocup")
+    multi_executor = MultiThreadedExecutor()
+    multi_executor.add_node(node)
     tf_buffer = tf2_ros.Buffer(Duration(seconds=30))
     tf_listener = tf2_ros.TransformListener(tf_buffer, node)  # pylint: disable=unused-variable
 
     ball = BallMarker(server, tf_buffer, node)
     goal = GoalMarker(server, tf_buffer, node)
     obstacles = ObstacleMarkerArray(server, tf_buffer, node)
-
+    
     server.applyChanges()
 
     # Create a timer to update the published ball transform
-    node.create_timer(0.05, ball.publish_marker)
-    node.create_timer(0.05, goal.publish_marker)
-    node.create_timer(0.05, obstacles.publish_marker)
+    node.create_timer(1.0, ball.publish_marker)
+    node.create_timer(1.0, goal.publish_marker)
+    node.create_timer(1.0, obstacles.publish_marker)
 
     try:
-        rclpy.spin(node)
+        multi_executor.spin()
     except KeyboardInterrupt:
         pass
     node.destroy_node()

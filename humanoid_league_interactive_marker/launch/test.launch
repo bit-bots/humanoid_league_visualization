@@ -1,0 +1,13 @@
+<launch>
+    <node pkg="rviz2" exec="rviz2" output="screen" args="-d $(find-pkg-share humanoid_league_interactive_marker)/config/interactive_marker.rviz"/> 
+
+    <include file="$(find-pkg-share bitbots_utils)/launch/base.launch" />
+    <node pkg="bitbots_utils" exec="motor_goals_viz_helper.py" args="--all"/>
+    <!-- fake IMU needed for odometry-->
+    <node pkg="bitbots_utils" exec="dummy_imu.py"/>
+    <!-- create fake tf from map to robot -->
+    <node pkg="tf2_ros" exec="static_transform_publisher" name="static_map2odom_tf" args="--x -0.0 --y -0.0 --z 0.0 --qx 0.0 --qy 0.0 --qz 0.0 --qw 1.0 --frame-id map --child-frame-id odom" />
+
+    <node pkg="humanoid_league_interactive_marker" exec="interactive_marker" output="screen"/>
+
+</launch>
