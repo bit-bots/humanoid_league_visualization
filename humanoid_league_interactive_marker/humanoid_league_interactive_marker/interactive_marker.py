@@ -51,9 +51,9 @@ from soccer_vision_3d_msgs.msg import Ball, BallArray, Goalpost, GoalpostArray, 
 from soccer_vision_attribute_msgs.msg import Confidence
 from soccer_vision_attribute_msgs.msg import Goalpost as GoalpostAttr
 
-BALL_DIAMETER = 0.13
-GOAL_WIDTH = 1.5
-GOAL_HEIGHT = 1.1
+BALL_DIAMETER = 0.14
+GOAL_WIDTH = 2.6
+GOAL_HEIGHT = 1.2
 POST_DIAMETER = 0.1
 OBSTACLE_NUMBER = 1
 OBSTACLE_HEIGHT = 0.8
