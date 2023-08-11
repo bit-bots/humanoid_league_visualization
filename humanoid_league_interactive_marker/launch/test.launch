@@ -1,7 +1,7 @@
 <launch>
-    <node pkg="rviz2" exec="rviz2" output="screen" args="-d $(find-pkg-share humanoid_league_interactive_marker)/config/interactive_marker.rviz"/> 
+    <node pkg="rviz2" exec="rviz2" output="screen" args="-d $(find-pkg-share humanoid_league_interactive_marker)/config/interactive_marker.rviz"/>
 
-    <include file="$(find-pkg-share bitbots_utils)/launch/base.launch" />
+    <include file="$(find-pkg-share bitbots_utils)/launch/parameter_blackboard.launch" />
     <node pkg="bitbots_utils" exec="motor_goals_viz_helper.py" args="--all"/>
     <!-- fake IMU needed for odometry-->
     <node pkg="bitbots_utils" exec="dummy_imu.py"/>

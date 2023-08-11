@@ -21,6 +21,7 @@
   <depend>tf_transformations</depend>
   <depend>tf2_ros</depend>
   <depend>humanoid_league_msgs</depend>
+  <depend>bitbots_utils</depend>
 
   <export>
     <bitbots_documentation>
